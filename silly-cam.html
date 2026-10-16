@@ -12,6 +12,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&display=swap" rel="stylesheet">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
 <style>
   :root {
     --grape: #2B1640;
@@ -22,6 +24,8 @@
     --sky: #6EC6FF;
     --cream: #FFF6E0;
     --muted: #CBB8E3;
+    --lav: #5B3A82;
+    --lav-2: #7A56A8;
     color-scheme: dark;
     box-sizing: border-box;
     padding-top: env(safe-area-inset-top, 0px);
@@ -93,6 +97,9 @@
     display: flex; align-items: center; gap: 6px;
   }
   .chip[aria-pressed="true"] { background: var(--sky); border-color: var(--sky); color: var(--grape); }
+  #modeRow .chip { font-size: 1.08rem; padding: 6px 14px 4px; }
+  .row.sub .chip { background: var(--lav); border-color: var(--lav-2); }
+  .row.sub .chip[aria-pressed="true"] { background: var(--sky); border-color: var(--sky); color: var(--grape); }
   .chip .em { font-size: 1.2rem; }
   .size-row { display: flex; align-items: center; gap: 10px; font-weight: 700; color: var(--muted); }
   .size-row[hidden] { display: none; }
@@ -136,7 +143,23 @@
   .empty { grid-column: 1 / -1; text-align: center; color: var(--muted); font-size: 1.15rem; padding: 40px 12px; }
 
   .player-wrap { flex: 1; min-height: 0; margin: 0 12px; border-radius: 28px; overflow: hidden; background: #000; position: relative; }
-  #player { width: 100%; height: 100%; object-fit: contain; display: block; }
+  #player, #fplayer { width: 100%; height: 100%; object-fit: contain; display: block; }
+  #player[hidden], #fplayer[hidden], .del[hidden] { display: none; }
+
+  .dialog { position: fixed; inset: 0; z-index: 40; background: rgba(20,8,32,.75); display: flex; align-items: center; justify-content: center; padding: 24px; }
+  .dialog[hidden] { display: none; }
+  .dbox { background: var(--grape-2); border: 3px solid var(--grape-3); border-radius: 28px; padding: 20px; width: min(360px, 100%); text-align: center; }
+  .dicon { font-size: 3rem; line-height: 1.1; }
+  .dtext { font-size: 1.5rem; font-weight: 800; margin: 6px 0 16px; }
+  .dbtns { display: flex; gap: 12px; }
+  .dbtn { flex: 1; border: 0; border-radius: 20px; padding: 14px 8px 10px; font-weight: 800; font-size: 1.3rem; position: relative; overflow: hidden; }
+  .dbtn.yes { background: var(--gum); color: #fff; }
+  .dbtn.keep { background: var(--cream); color: var(--grape); }
+  .dbtn.save { background: #6B5A80; color: rgba(255,246,224,.55); }
+  .dbtn.save .fill { position: absolute; inset: 0; width: 0; background: #4CD964; transition: width 2s linear; }
+  .dbtn.save.filling .fill { width: 100%; }
+  .dbtn.save .lbl { position: relative; }
+  .dbtn.save.ready { background: #4CD964; color: #0E3B18; }
   .tap-play {
     position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
     font-size: 4rem; background: transparent; border: 0; color: rgba(255,246,224,.9);
@@ -184,31 +207,33 @@
       <button class="chip" data-mode="mask" aria-pressed="false"><span class="em">👹</span>Masks</button>
       <button class="chip" data-mode="plain" aria-pressed="false"><span class="em">🙂</span>Normal</button>
     </div>
-    <div class="row" id="bgRow" role="group" aria-label="Picture">
+    <div class="row sub" id="bgRow" role="group" aria-label="Picture">
       <button class="chip" data-bg="pumpkin" aria-pressed="true"><span class="em">🎃</span>Pumpkin</button>
       <button class="chip" data-bg="potato" aria-pressed="false"><span class="em">🥔</span>Potato</button>
       <button class="chip" data-bg="moon" aria-pressed="false"><span class="em">🌕</span>Moon</button>
       <button class="chip" data-bg="orange" aria-pressed="false"><span class="em">🍊</span>Orange</button>
       <button class="chip" data-bg="photo" aria-pressed="false"><span class="em">🖼️</span>My picture</button>
     </div>
-    <div class="row" id="hatRow" role="group" aria-label="Hat" style="display:none">
+    <div class="row sub" id="hatRow" role="group" aria-label="Hat" style="display:none">
       <button class="chip" data-hat="none" aria-pressed="false">No hat</button>
       <button class="chip" data-hat="cap" aria-pressed="false"><span class="em">🧢</span>Ball cap</button>
       <button class="chip" data-hat="bowler" aria-pressed="false"><span class="em">🎳</span>Bowler</button>
       <button class="chip" data-hat="tophat" aria-pressed="true"><span class="em">🎩</span>Top hat</button>
     </div>
-    <div class="row" id="glassRow" role="group" aria-label="Glasses" style="display:none">
+    <div class="row sub" id="glassRow" role="group" aria-label="Glasses" style="display:none">
       <button class="chip" data-glasses="none" aria-pressed="false">No glasses</button>
       <button class="chip" data-glasses="sun" aria-pressed="true"><span class="em">😎</span>Sunglasses</button>
       <button class="chip" data-glasses="eye" aria-pressed="false"><span class="em">👓</span>Eyeglasses</button>
       <button class="chip" data-glasses="silly" aria-pressed="false"><span class="em">🥸</span>Silly glasses</button>
+      <button class="chip" data-glasses="googly" aria-pressed="false"><span class="em">👀</span>Googly eyes</button>
     </div>
-    <div class="row" id="maskRow" role="group" aria-label="Mask" style="display:none">
+    <div class="row sub" id="maskRow" role="group" aria-label="Mask" style="display:none">
       <button class="chip" data-mask="monster" aria-pressed="true"><span class="em">👹</span>Monster</button>
       <button class="chip" data-mask="robot" aria-pressed="false"><span class="em">🤖</span>Robot</button>
       <button class="chip" data-mask="alien" aria-pressed="false"><span class="em">👽</span>Alien</button>
+      <button class="chip" data-mask="dragon" aria-pressed="false"><span class="em">🐉</span>Dragon</button>
     </div>
-    <div class="row" id="mouthRow" role="group" aria-label="Mouth effect" style="display:none">
+    <div class="row sub" id="mouthRow" role="group" aria-label="Mouth effect" style="display:none">
       <button class="chip" data-fx="none" aria-pressed="false">No mouth effect</button>
       <button class="chip" data-fx="fire" aria-pressed="true"><span class="em">🔥</span>Fire</button>
       <button class="chip" data-fx="rainbow" aria-pressed="false"><span class="em">🌈</span>Rainbow</button>
@@ -240,9 +265,15 @@
     </div>
     <div class="player-wrap">
       <video id="player" playsinline webkit-playsinline disablepictureinpicture controlslist="nodownload noremoteplayback" loop></video>
+      <canvas id="fplayer" hidden></canvas>
       <button class="tap-play" id="tapPlay" aria-label="Play">▶</button>
     </div>
-    <div class="speeds" id="speeds" role="group" aria-label="Speed">
+    <div class="speeds" id="dirs" role="group" aria-label="Direction">
+      <button class="chip" data-dir="fwd" aria-pressed="true">▶️ Forward</button>
+      <button class="chip" data-dir="rev" aria-pressed="false">⏪ Backward</button>
+      <button class="chip" data-dir="boom" aria-pressed="false">🔁 Boomerang</button>
+    </div>
+    <div class="speeds" id="speeds" role="group" aria-label="Speed" style="padding-top:4px">
       <button class="chip speed" data-rate="0.25" aria-pressed="false">🐌 ¼×</button>
       <button class="chip speed" data-rate="0.5" aria-pressed="false">🐢 ½×</button>
       <button class="chip speed" data-rate="1" aria-pressed="true">1×</button>
@@ -252,6 +283,14 @@
     <div class="player-foot">
       <label class="toggle"><input type="checkbox" id="sillyVoice" checked> Silly voice</label>
       <button class="del" id="delBtn">Delete</button>
+    </div>
+  </div>
+
+  <div class="dialog" id="dialog" hidden>
+    <div class="dbox" role="dialog" aria-modal="true" aria-labelledby="dText">
+      <div class="dicon" id="dIcon">🗑️</div>
+      <div class="dtext" id="dText">Delete this video?</div>
+      <div class="dbtns" id="dBtns"></div>
     </div>
   </div>
 
@@ -544,6 +583,78 @@ const MASKS = {
     for (let x = mx - mw / 2 + mw / 8; x < mx + mw / 2 - 1; x += mw / 8) { ctx.beginPath(); ctx.moveTo(x, my - mh / 2); ctx.lineTo(x, my + mh / 2); ctx.stroke(); }
     ctx.restore();
   },
+  dragon(ctx, L) {
+    const { w, u } = L;
+    const rx = 0.62 * w, y0 = 0, ryTop = 0.78 * w, ryBot = Math.max(0.66 * w, L.chin.y + 0.18 * w);
+    ctx.fillStyle = "#3A2418";
+    for (const sx of [-1, 1]) {
+      ctx.beginPath();
+      ctx.moveTo(sx * 0.22 * w, -ryTop * 0.78);
+      ctx.quadraticCurveTo(sx * 0.42 * w, -ryTop * 1.3, sx * 0.7 * w, -ryTop * 1.4);
+      ctx.quadraticCurveTo(sx * 0.5 * w, -ryTop * 1.05, sx * 0.46 * w, -ryTop * 0.58);
+      ctx.closePath(); ctx.fill();
+    }
+    ctx.fillStyle = "#F2A33A";
+    for (const sx of [-1, 1]) for (let k = 0; k < 3; k++) {
+      const by = -0.3 * w + k * 0.26 * w, len = 0.24 * w - k * 0.04 * w;
+      ctx.beginPath();
+      ctx.moveTo(sx * rx * 0.94, by - 0.1 * w);
+      ctx.lineTo(sx * (rx + len), by + 0.02 * w);
+      ctx.lineTo(sx * rx * 0.9, by + 0.11 * w);
+      ctx.closePath(); ctx.fill();
+    }
+    const g = ctx.createRadialGradient(-0.2 * w, -0.35 * w, 0.1 * w, 0, 0, 1.0 * w);
+    g.addColorStop(0, "#F2553F"); g.addColorStop(1, "#9A1C12");
+    headPath(ctx, rx, y0, ryTop, ryBot);
+    ctx.fillStyle = g; ctx.fill(); ctx.strokeStyle = "#5E120A"; ctx.lineWidth = 0.022 * w; ctx.stroke();
+    ctx.strokeStyle = "rgba(94,18,10,.4)"; ctx.lineWidth = 0.014 * w;
+    for (let row = 0; row < 3; row++) for (let col = -2; col <= 2; col++) {
+      const x = col * 0.12 * w + (row % 2 ? 0.06 * w : 0), y = -0.62 * w + row * 0.1 * w;
+      if (Math.abs(x) > 0.36 * w) continue;
+      ctx.beginPath(); ctx.arc(x, y, 0.06 * w, 0.15 * Math.PI, 0.85 * Math.PI); ctx.stroke();
+    }
+    const mTop = L.nose.y - 0.1 * w, mBot = L.chin.y + 0.12 * w;
+    ctx.fillStyle = "#F5C26B"; ell(ctx, L.mouth.x, (mTop + mBot) / 2, 0.42 * w, (mBot - mTop) / 2);
+    ctx.fillStyle = "#5E120A";
+    for (const sx of [-1, 1]) { ctx.save(); ctx.translate(L.nose.x + sx * 0.09 * w, L.nose.y); ctx.rotate(sx * 0.4); ell(ctx, 0, 0, 0.04 * w, 0.022 * w); ctx.restore(); }
+    const er = 0.14 * w;
+    [[-1, L.eyeL], [1, L.eyeR]].forEach(([sx, o]) => {
+      const ex = sx * 0.55 * u, ey = -0.02 * w, open = Math.max(0.08, o);
+      ctx.save();
+      ctx.beginPath(); ctx.ellipse(ex, ey, er, er * 0.75 * open, 0, 0, Math.PI * 2);
+      ctx.fillStyle = "#D8F23A"; ctx.fill(); ctx.clip();
+      ctx.fillStyle = "#1A1210"; ell(ctx, ex, ey, er * 0.14, er * 0.6);
+      ctx.fillStyle = "rgba(255,255,255,.8)"; ell(ctx, ex - er * 0.35, ey - er * 0.25, er * 0.12, er * 0.09);
+      ctx.restore();
+    });
+    ctx.fillStyle = "#7A150D";
+    for (const sx of [-1, 1]) {
+      ctx.beginPath();
+      ctx.moveTo(sx * 0.1 * w, -0.1 * w); ctx.lineTo(sx * 0.58 * w, -0.25 * w);
+      ctx.lineTo(sx * 0.6 * w, -0.16 * w); ctx.lineTo(sx * 0.14 * w, -0.04 * w);
+      ctx.closePath(); ctx.fill();
+    }
+    const mx = L.mouth.x, my = L.mouth.y + 0.02 * w, mw = 0.34 * w, mh = 0.03 * w + L.open * 0.28 * w;
+    ctx.save();
+    ctx.beginPath(); ctx.ellipse(mx, my, mw, mh, 0, 0, Math.PI * 2);
+    ctx.fillStyle = "#3A0A0A"; ctx.fill(); ctx.clip();
+    ctx.fillStyle = "#FF8A3D"; ell(ctx, mx, my + mh * 0.3, mw * 0.5, mh * 0.6);
+    ctx.fillStyle = "#FFFDF2";
+    for (let i = 0; i < 8; i++) {
+      const x = mx - mw + (i + 0.5) * (2 * mw / 8);
+      ctx.beginPath(); ctx.moveTo(x - mw / 8 * 0.9, my - mh - 1); ctx.lineTo(x + mw / 8 * 0.9, my - mh - 1);
+      ctx.lineTo(x, my - mh + 0.06 * w); ctx.closePath(); ctx.fill();
+    }
+    ctx.restore();
+    ctx.fillStyle = "#FFFDF2";
+    for (const sx of [-1, 1]) {
+      const x = mx + sx * mw * 0.55;
+      ctx.beginPath(); ctx.moveTo(x - 0.035 * w, my - mh * 0.8); ctx.lineTo(x + 0.035 * w, my - mh * 0.8);
+      ctx.lineTo(x, my - mh * 0.8 + 0.13 * w); ctx.closePath(); ctx.fill();
+    }
+    ctx.strokeStyle = "#5E120A"; ctx.lineWidth = 0.02 * w;
+    ctx.beginPath(); ctx.ellipse(mx, my, mw, mh, 0, 0, Math.PI * 2); ctx.stroke();
+  },
   alien(ctx, L) {
     const { w } = L;
     const y0 = -0.05 * w, rx = 0.68 * w, ryTop = 0.95 * w, chinY = Math.max(0.72 * w, L.chin.y + 0.14 * w);
@@ -676,15 +787,49 @@ function runFx(now) {
   ctx.restore();
 }
 
+// Googly eyes: pupils have their own little physics, so they lag and bounce
+const googly = [null, null];
+let gT = 0;
+function drawGoogly(f, now) {
+  const dt = gT ? clamp((now - gT) / 16.67, 0.2, 3) : 1;
+  gT = now;
+  const u = f.unit, R = 0.36 * u, r = 0.17 * u, lim = R - r - 0.02 * u;
+  [f.eL, f.eR].forEach((e, i) => {
+    let g = googly[i];
+    if (!g || Math.hypot(g.x - e.cx, g.y - e.cy) > R * 3) g = googly[i] = { x: e.cx, y: e.cy + lim, vx: 0, vy: 0 };
+    g.vy += 0.012 * u * dt;
+    const damp = Math.pow(0.97, dt);
+    g.vx *= damp; g.vy *= damp;
+    g.x += g.vx * dt; g.y += g.vy * dt;
+    const dx = g.x - e.cx, dy = g.y - e.cy, d = Math.hypot(dx, dy);
+    if (d > lim) {
+      const nx = dx / d, ny = dy / d;
+      g.x = e.cx + nx * lim; g.y = e.cy + ny * lim;
+      const vn = g.vx * nx + g.vy * ny;
+      if (vn > 0) { g.vx -= 1.65 * vn * nx; g.vy -= 1.65 * vn * ny; }
+    }
+    octx.beginPath(); octx.arc(e.cx, e.cy, R, 0, Math.PI * 2);
+    octx.fillStyle = "#FFFFFF"; octx.fill();
+    octx.strokeStyle = "#1A1210"; octx.lineWidth = 0.05 * u; octx.stroke();
+    octx.beginPath(); octx.arc(g.x, g.y, r, 0, Math.PI * 2);
+    octx.fillStyle = "#111"; octx.fill();
+    octx.beginPath(); octx.arc(g.x - r * 0.35, g.y - r * 0.35, r * 0.25, 0, Math.PI * 2);
+    octx.fillStyle = "rgba(255,255,255,.8)"; octx.fill();
+    octx.beginPath(); octx.arc(e.cx - R * 0.45, e.cy - R * 0.45, R * 0.18, 0, Math.PI * 2);
+    octx.fillStyle = "rgba(255,255,255,.9)"; octx.fill();
+  });
+}
+
 function renderAccessories(now) {
   const f = state.face;
   if (!f || now - state.lastSeen > 600) return;
+  if (state.glasses === "googly") drawGoogly(f, now);
   const c = Math.cos(f.roll), s = Math.sin(f.roll);
   const mid = { x: (f.eL.cx + f.eR.cx) / 2, y: (f.eL.cy + f.eR.cy) / 2 };
   const toLocal = (p) => { const dx = p.x - mid.x, dy = p.y - mid.y; return { x: dx * c + dy * s, y: -dx * s + dy * c }; };
   octx.save();
   octx.translate(mid.x, mid.y); octx.rotate(f.roll);
-  if (state.glasses !== "none") { octx.save(); GLASSES[state.glasses](octx, f.unit, toLocal(f.nose), toLocal(f.lip)); octx.restore(); }
+  if (state.glasses !== "none" && state.glasses !== "googly") { octx.save(); GLASSES[state.glasses](octx, f.unit, toLocal(f.nose), toLocal(f.lip)); octx.restore(); }
   if (state.hat !== "none") { const fo = toLocal(f.fore); octx.save(); octx.translate(fo.x, fo.y); HATS[state.hat](octx, f.faceW); octx.restore(); }
   octx.restore();
 }
@@ -836,7 +981,7 @@ function loop() {
   sctx.setTransform(1, 0, 0, 1, 0, 0);
   const now = performance.now();
 
-  if (state.mode === "plain") { octx.drawImage(src, 0, 0); return; }
+  if (state.mode === "plain") { octx.drawImage(src, 0, 0); captureFrame(now); return; }
 
   if (state.landmarker && cam.currentTime !== state.lastVideoTime) {
     state.lastVideoTime = cam.currentTime;
@@ -861,6 +1006,19 @@ function loop() {
     octx.font = `700 ${Math.round(Math.min(W, H) * 0.05)}px "Baloo 2", sans-serif`;
     octx.fillText("Getting the face finder ready…", W / 2, H / 2);
   }
+  captureFrame(now);
+}
+
+// Small JPEG frames saved while recording, so videos can play backward
+const CAP_FPS = 15;
+const cap = document.createElement("canvas"), cctx = cap.getContext("2d");
+function captureFrame(now) {
+  if (!state.recorder || now - state.lastFrameT < 1000 / CAP_FPS - 2) return;
+  state.lastFrameT = now;
+  const sw = 360, sh = Math.round(out.height * sw / out.width);
+  if (cap.width !== sw || cap.height !== sh) { cap.width = sw; cap.height = sh; }
+  cctx.drawImage(out, 0, 0, sw, sh);
+  state.framePromises.push(new Promise((r) => cap.toBlob(r, "image/jpeg", 0.72)));
 }
 
 // ---------- Startup ----------
@@ -986,7 +1144,7 @@ function startRec() {
   let rec;
   try { rec = new MediaRecorder(vs, mime ? { mimeType: mime } : undefined); }
   catch (e) { toast("Recording isn’t supported in this browser"); return; }
-  state.chunks = [];
+  state.chunks = []; state.framePromises = []; state.lastFrameT = 0;
   rec.ondataavailable = (e) => { if (e.data && e.data.size) state.chunks.push(e.data); };
   rec.onstop = saveClip;
   rec.start(250);
@@ -1011,9 +1169,10 @@ function stopRec() {
 async function saveClip() {
   const type = state.chunks[0]?.type || pickMime() || "video/webm";
   const blob = new Blob(state.chunks, { type });
-  const clip = { id: Date.now(), blob, thumb: state.thumb, dur: state.recDuration, type };
-  await db.put(clip);
-  refreshCount(); toast("Saved to My videos");
+  const frames = (await Promise.all(state.framePromises || [])).filter(Boolean);
+  const fps = clamp(frames.length / Math.max(0.5, state.recDuration || 1), 1, 30);
+  const clip = { id: Date.now(), blob, thumb: state.thumb, dur: state.recDuration, type, frames, fps };
+  openPlayer(clip, true); // play it right away; asks to keep it when he leaves
 }
 
 // ---------- Storage (stays inside this app) ----------
@@ -1040,7 +1199,9 @@ async function refreshCount() { $("count").textContent = (await db.all()).length
 refreshCount();
 
 // ---------- Gallery & player ----------
-let current = null, currentUrl = null;
+let current = null, currentUrl = null, fresh = false;
+const player = $("player"), fcan = $("fplayer"), fpx = fcan.getContext("2d");
+const pb = { dir: "fwd", rate: 1, actx: null, src: null, start: 0, pos: 0, raf: 0, cache: new Map(), pending: new Set(), seq: null, cycle: 1, paused: false };
 
 $("galleryBtn").onclick = openGallery;
 $("galleryClose").onclick = () => { $("gallery").hidden = true; };
@@ -1048,59 +1209,209 @@ $("galleryClose").onclick = () => { $("gallery").hidden = true; };
 async function openGallery() {
   const clips = (await db.all()).sort((a, b) => b.id - a.id);
   const grid = $("grid"); grid.innerHTML = "";
-  if (!clips.length) {
-    grid.innerHTML = '<div class="empty">No videos yet. Tap the yellow button to record one.</div>';
-  }
+  if (!clips.length) grid.innerHTML = '<div class="empty">No videos yet. Tap the yellow button to record one.</div>';
   for (const c of clips) {
     const b = document.createElement("button");
     b.className = "clip"; b.setAttribute("aria-label", "Play video");
     b.innerHTML = `<img alt="" src="${c.thumb}"><span class="len">${Math.max(1, Math.round(c.dur || 0))}s</span>`;
-    b.onclick = () => openPlayer(c);
+    b.onclick = () => openPlayer(c, false);
     grid.appendChild(b);
   }
   $("gallery").hidden = false;
 }
 
-function openPlayer(c) {
-  current = c;
+function showPlaying(on) { $("tapPlay").textContent = "▶"; $("tapPlay").style.opacity = on ? 0 : 1; }
+
+function openPlayer(c, isFresh) {
+  current = c; fresh = isFresh;
   if (currentUrl) URL.revokeObjectURL(currentUrl);
   currentUrl = URL.createObjectURL(c.blob);
-  const p = $("player");
-  p.src = currentUrl;
-  setRate(1);
-  $("tapPlay").textContent = "▶"; $("tapPlay").style.opacity = 1;
+  player.src = currentUrl;
+  clearCache();
+  pb.rate = 1; pb.pos = 0;
+  pressGroup($("speeds"), $("speeds").querySelector('[data-rate="1"]'));
+  $("delBtn").hidden = isFresh;
   $("playerSheet").hidden = false;
-  p.play().then(() => { $("tapPlay").style.opacity = 0; }).catch(() => {});
+  setDir("fwd");
 }
 function closePlayer() {
-  const p = $("player"); p.pause(); p.removeAttribute("src"); p.load();
+  stopFrames(); clearCache();
+  player.pause(); player.removeAttribute("src"); player.load();
   $("playerSheet").hidden = true;
+  current = null; fresh = false;
 }
-$("playerClose").onclick = closePlayer;
-$("player").addEventListener("contextmenu", (e) => e.preventDefault());
+$("playerClose").onclick = () => { if (fresh) askFresh(); else closePlayer(); };
+player.addEventListener("contextmenu", (e) => e.preventDefault());
+fcan.addEventListener("contextmenu", (e) => e.preventDefault());
 
 $("tapPlay").onclick = () => {
-  const p = $("player");
-  if (p.paused) { p.play(); $("tapPlay").style.opacity = 0; }
-  else { p.pause(); $("tapPlay").textContent = "▶"; $("tapPlay").style.opacity = 1; }
+  if (pb.dir === "fwd") {
+    if (player.paused) { player.play(); showPlaying(true); } else { player.pause(); showPlaying(false); }
+  } else if (pb.paused) { pb.paused = false; startFrames(pb.pos); showPlaying(true); }
+  else { stopFrames(); pb.paused = true; showPlaying(false); }
 };
 
 function applyPitch() {
-  const p = $("player"), keep = !$("sillyVoice").checked;
-  p.preservesPitch = keep; p.mozPreservesPitch = keep; p.webkitPreservesPitch = keep;
+  const keep = !$("sillyVoice").checked;
+  player.preservesPitch = keep; player.mozPreservesPitch = keep; player.webkitPreservesPitch = keep;
 }
 function setRate(r) {
-  const p = $("player"); applyPitch();
-  p.playbackRate = r; p.defaultPlaybackRate = r;
-  $("speeds").querySelectorAll(".speed").forEach((b) => b.setAttribute("aria-pressed", String(parseFloat(b.dataset.rate) === r)));
+  pb.rate = r;
+  pressGroup($("speeds"), $("speeds").querySelector(`[data-rate="${r}"]`));
+  applyPitch();
+  player.playbackRate = r; player.defaultPlaybackRate = r;
+  if (pb.dir !== "fwd" && !pb.paused) startFrames(pb.pos);
 }
 $("speeds").onclick = (e) => { const b = e.target.closest("[data-rate]"); if (b) setRate(parseFloat(b.dataset.rate)); };
-$("sillyVoice").onchange = () => { const p = $("player"); const r = p.playbackRate; applyPitch(); p.playbackRate = r; };
+$("sillyVoice").onchange = () => { const r = player.playbackRate; applyPitch(); player.playbackRate = r; };
 
-$("delBtn").onclick = async () => {
-  if (!current || !confirm("Delete this video?")) return;
-  await db.del(current.id); closePlayer(); await refreshCount(); openGallery();
+function setDir(d) {
+  pb.dir = d;
+  pressGroup($("dirs"), $("dirs").querySelector(`[data-dir="${d}"]`));
+  stopFrames(); pb.paused = false; pb.pos = 0; showPlaying(true);
+  if (d === "fwd") {
+    fcan.hidden = true; player.hidden = false;
+    applyPitch(); player.playbackRate = pb.rate; player.defaultPlaybackRate = pb.rate;
+    player.currentTime = 0;
+    player.play().catch(() => showPlaying(false));
+  } else {
+    player.pause(); player.hidden = true; fcan.hidden = false;
+    startFrames(0);
+  }
+}
+$("dirs").onclick = (e) => { const b = e.target.closest("[data-dir]"); if (b) setDir(b.dataset.dir); };
+
+// Backward / boomerang player: draws saved frames and plays flipped audio
+function getActx() {
+  if (!pb.actx) { try { pb.actx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {} }
+  return pb.actx;
+}
+async function decodeAudio(c) {
+  if (c._audio !== undefined) return c._audio;
+  c._audio = null;
+  const ac = getActx(); if (!ac) return null;
+  try {
+    const ab = await c.blob.arrayBuffer();
+    c._audio = await new Promise((res, rej) => { const p = ac.decodeAudioData(ab, res, rej); if (p && p.then) p.then(res, rej); });
+  } catch (e) { c._audio = null; }
+  return c._audio;
+}
+function flipAudio(ac, buf, dir) {
+  const n = buf.length, len = dir === "boom" ? n * 2 : n;
+  const o = ac.createBuffer(buf.numberOfChannels, len, buf.sampleRate);
+  for (let ch = 0; ch < buf.numberOfChannels; ch++) {
+    const sd = buf.getChannelData(ch), d = o.getChannelData(ch);
+    if (dir === "rev") { for (let i = 0; i < n; i++) d[i] = sd[n - 1 - i]; }
+    else { d.set(sd, 0); for (let i = 0; i < n; i++) d[n + i] = sd[n - 1 - i]; }
+  }
+  return o;
+}
+function stopFrames() {
+  cancelAnimationFrame(pb.raf); pb.raf = 0;
+  if (pb.src) { try { pb.src.stop(); } catch (e) {} pb.src = null; }
+}
+function clearCache() {
+  for (const bm of pb.cache.values()) bm.close?.();
+  pb.cache.clear(); pb.pending.clear();
+}
+async function startFrames(fromPos) {
+  stopFrames();
+  const c = current, dir = pb.dir;
+  const n = c?.frames?.length || 0;
+  if (n < 2) { toast("Only new videos can play backward"); setDir("fwd"); return; }
+  const idx = [...Array(n).keys()];
+  pb.seq = dir === "rev" ? idx.slice().reverse() : idx.concat(idx.slice().reverse().slice(1, -1));
+  pb.cycle = pb.seq.length / c.fps;
+  const pos = (fromPos || 0) % pb.cycle;
+  const ac = getActx();
+  if (ac && ac.state === "suspended") { try { await ac.resume(); } catch (e) {} }
+  const buf = await decodeAudio(c);
+  if (current !== c || pb.dir !== dir || pb.paused) return;
+  stopFrames();
+  if (ac && buf) {
+    const key = "_" + dir;
+    if (!c[key]) c[key] = flipAudio(ac, buf, dir);
+    const srcNode = ac.createBufferSource();
+    srcNode.buffer = c[key]; srcNode.loop = true; srcNode.playbackRate.value = pb.rate;
+    srcNode.connect(ac.destination);
+    srcNode.start(0, (pos / pb.cycle) * c[key].duration);
+    pb.src = srcNode;
+  }
+  pb.start = performance.now() / 1000 - pos / pb.rate;
+  pb.raf = requestAnimationFrame(tickFrames);
+}
+function tickFrames() {
+  pb.raf = requestAnimationFrame(tickFrames);
+  const c = current; if (!c) return;
+  const pos = ((performance.now() / 1000 - pb.start) * pb.rate) % pb.cycle;
+  pb.pos = pos;
+  const k = Math.min(pb.seq.length - 1, Math.floor(pos * c.fps));
+  for (let j = 0; j < 8; j++) wantFrame(c, pb.seq[(k + j) % pb.seq.length]);
+  const bm = pb.cache.get(pb.seq[k]);
+  if (bm) {
+    if (fcan.width !== bm.width || fcan.height !== bm.height) { fcan.width = bm.width; fcan.height = bm.height; }
+    fpx.drawImage(bm, 0, 0);
+  }
+}
+function wantFrame(c, i) {
+  if (pb.cache.has(i) || pb.pending.has(i)) return;
+  pb.pending.add(i);
+  const done = (bm) => {
+    pb.pending.delete(i);
+    if (current !== c) { bm?.close?.(); return; }
+    if (!bm) return;
+    pb.cache.set(i, bm);
+    while (pb.cache.size > 40) { const [k0, v] = pb.cache.entries().next().value; v.close?.(); pb.cache.delete(k0); }
+  };
+  if (window.createImageBitmap) createImageBitmap(c.frames[i]).then(done, () => done(null));
+  else { const img = new Image(); img.onload = () => done(img); img.onerror = () => done(null); img.src = URL.createObjectURL(c.frames[i]); }
+}
+
+// ---------- Keep or delete dialogs ----------
+function makeBtn(cls, html, onClick) {
+  const b = document.createElement("button");
+  b.className = "dbtn " + cls; b.innerHTML = html; b.onclick = onClick;
+  return b;
+}
+function showDialog(icon, text, buttons) {
+  $("dIcon").textContent = icon; $("dText").textContent = text;
+  const box = $("dBtns"); box.innerHTML = "";
+  buttons.forEach((b) => box.appendChild(b));
+  $("dialog").hidden = false;
+}
+function hideDialog() { $("dialog").hidden = true; }
+function storable(c) { return { id: c.id, blob: c.blob, thumb: c.thumb, dur: c.dur, type: c.type, frames: c.frames, fps: c.fps }; }
+
+// New video: "Yes" deletes right away; "Save" only works after a 2 second wait
+function askFresh() {
+  const clip = current;
+  const yes = makeBtn("yes", "🗑️ Yes", () => { hideDialog(); closePlayer(); });
+  const save = makeBtn("save", '<span class="fill"></span><span class="lbl">💾 Save</span>', async () => {
+    if (!save.classList.contains("ready")) return;
+    hideDialog();
+    try { await db.put(storable(clip)); toast("Saved to My videos"); }
+    catch (e) { toast("Couldn’t save this video"); }
+    closePlayer(); refreshCount();
+  });
+  save.setAttribute("aria-disabled", "true");
+  showDialog("🗑️", "Delete this video?", [yes, save]);
+  requestAnimationFrame(() => requestAnimationFrame(() => save.classList.add("filling")));
+  setTimeout(() => { save.classList.add("ready"); save.removeAttribute("aria-disabled"); }, 2000);
+}
+
+$("delBtn").onclick = () => {
+  if (!current) return;
+  const c = current;
+  showDialog("🗑️", "Delete this video?", [
+    makeBtn("yes", "🗑️ Delete", async () => { hideDialog(); await db.del(c.id); closePlayer(); await refreshCount(); openGallery(); }),
+    makeBtn("keep", "↩️ Keep", hideDialog),
+  ]);
 };
+
+// ---------- Offline mode ----------
+if ("serviceWorker" in navigator && location.protocol === "https:") {
+  navigator.serviceWorker.register("sw.js").catch(() => {});
+}
 
 // ---------- Toast ----------
 let toastT = null;
