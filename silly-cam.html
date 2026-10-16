@@ -181,6 +181,7 @@
     <div class="row" id="modeRow" role="group" aria-label="Effect">
       <button class="chip" data-mode="face" aria-pressed="true"><span class="em">👀</span>Eyes &amp; mouth</button>
       <button class="chip" data-mode="acc" aria-pressed="false"><span class="em">🎩</span>Hats &amp; glasses</button>
+      <button class="chip" data-mode="mask" aria-pressed="false"><span class="em">👹</span>Masks</button>
       <button class="chip" data-mode="plain" aria-pressed="false"><span class="em">🙂</span>Normal</button>
     </div>
     <div class="row" id="bgRow" role="group" aria-label="Picture">
@@ -201,6 +202,17 @@
       <button class="chip" data-glasses="sun" aria-pressed="true"><span class="em">😎</span>Sunglasses</button>
       <button class="chip" data-glasses="eye" aria-pressed="false"><span class="em">👓</span>Eyeglasses</button>
       <button class="chip" data-glasses="silly" aria-pressed="false"><span class="em">🥸</span>Silly glasses</button>
+    </div>
+    <div class="row" id="maskRow" role="group" aria-label="Mask" style="display:none">
+      <button class="chip" data-mask="monster" aria-pressed="true"><span class="em">👹</span>Monster</button>
+      <button class="chip" data-mask="robot" aria-pressed="false"><span class="em">🤖</span>Robot</button>
+      <button class="chip" data-mask="alien" aria-pressed="false"><span class="em">👽</span>Alien</button>
+    </div>
+    <div class="row" id="mouthRow" role="group" aria-label="Mouth effect" style="display:none">
+      <button class="chip" data-fx="none" aria-pressed="false">No mouth effect</button>
+      <button class="chip" data-fx="fire" aria-pressed="true"><span class="em">🔥</span>Fire</button>
+      <button class="chip" data-fx="rainbow" aria-pressed="false"><span class="em">🌈</span>Rainbow</button>
+      <button class="chip" data-fx="bubbles" aria-pressed="false"><span class="em">🫧</span>Bubbles</button>
     </div>
     <label class="size-row" id="sizeRow">Face size
       <input type="range" id="size" min="0.5" max="1.8" step="0.05" value="1">
@@ -258,7 +270,7 @@ const feat = document.createElement("canvas"), fctx = feat.getContext("2d");
 
 const state = {
   mode: "face", bg: "pumpkin", photo: null,
-  hat: "tophat", glasses: "sun",
+  hat: "tophat", glasses: "sun", mask: "monster", mouthFx: "fire",
   size: 1, offX: 0, offY: 0,
   landmarker: null, stream: null, lastVideoTime: -1,
   face: null, lastSeen: 0,
@@ -299,7 +311,16 @@ function updateFace(pts, W, H) {
     eL, eR, m, unit, roll,
     fore: pt(pts, 10, W, H), nose: pt(pts, 1, W, H), lip: pt(pts, 0, W, H),
     faceW: Math.hypot(c2.x - c1.x, c2.y - c1.y),
+    chin: pt(pts, 152, W, H),
   };
+  const ratio = (t, bt, l, r) => {
+    const T = pt(pts, t, W, H), B = pt(pts, bt, W, H), Lp = pt(pts, l, W, H), Rp = pt(pts, r, W, H);
+    return Math.hypot(T.x - B.x, T.y - B.y) / Math.max(1, Math.hypot(Lp.x - Rp.x, Lp.y - Rp.y));
+  };
+  const openA = ratio(159, 145, 33, 133), openB = ratio(386, 374, 263, 362);
+  next.eyeOpenL = a.cx < b.cx ? openA : openB;
+  next.eyeOpenR = a.cx < b.cx ? openB : openA;
+  next.mouthOpen = ratio(13, 14, 61, 291);
   if (!state.face) { state.face = next; return; }
   smoothInto(state.face, next, 0.55);
 }
@@ -426,6 +447,234 @@ const GLASSES = {
     }
   },
 };
+
+// ---------- Masks ----------
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+function headPath(ctx, rx, y0, ryTop, ryBot, amp = 0, freq = 0) {
+  ctx.beginPath();
+  for (let i = 0; i <= 120; i++) {
+    const a = (i / 120) * Math.PI * 2;
+    const ry = Math.sin(a) < 0 ? ryTop : ryBot;
+    const n = 1 + amp * Math.sin(a * freq);
+    const x = Math.cos(a) * rx * n, y = y0 + Math.sin(a) * ry * n;
+    i ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+  }
+  ctx.closePath();
+}
+
+// Masks: origin = between the eyes, L.w = face width, L.u = eye distance
+const MASKS = {
+  monster(ctx, L) {
+    const { w, u } = L;
+    const y0 = 0.05 * w, ryTop = 0.8 * w, ryBot = Math.max(0.62 * w, L.chin.y + 0.17 * w - y0);
+    ctx.fillStyle = "#F3E3B5";
+    for (const sx of [-1, 1]) {
+      ctx.beginPath();
+      ctx.moveTo(sx * 0.16 * w, y0 - ryTop * 0.8);
+      ctx.quadraticCurveTo(sx * 0.4 * w, y0 - ryTop * 1.22, sx * 0.52 * w, y0 - ryTop * 1.32);
+      ctx.quadraticCurveTo(sx * 0.44 * w, y0 - ryTop * 0.95, sx * 0.44 * w, y0 - ryTop * 0.6);
+      ctx.closePath(); ctx.fill();
+    }
+    const g = ctx.createRadialGradient(-0.2 * w, -0.3 * w, 0.1 * w, 0, 0, 1.0 * w);
+    g.addColorStop(0, "#9BE85A"); g.addColorStop(1, "#3C8C22");
+    headPath(ctx, 0.66 * w, y0, ryTop, ryBot, 0.03, 34);
+    ctx.fillStyle = g; ctx.fill();
+    ctx.strokeStyle = "#2C6A18"; ctx.lineWidth = 0.02 * w; ctx.stroke();
+    ctx.fillStyle = "rgba(44,106,24,.35)";
+    [[-0.4, -0.45, 0.07], [0.35, -0.55, 0.05], [0.47, 0.3, 0.06], [-0.47, 0.35, 0.05]].forEach(([x, y, r]) => ell(ctx, x * w, y * w, r * w, r * w));
+    const er = 0.17 * w;
+    [[-1, L.eyeL], [1, L.eyeR]].forEach(([sx, o]) => {
+      const ex = sx * 0.6 * u, ey = -0.03 * w, open = Math.max(0.08, o);
+      ctx.fillStyle = "#2C6A18"; ell(ctx, ex, ey, er * 1.12, er * 1.12);
+      ctx.save();
+      ctx.beginPath(); ctx.ellipse(ex, ey, er, er * open, 0, 0, Math.PI * 2);
+      ctx.fillStyle = "#FFFDF2"; ctx.fill(); ctx.clip();
+      ctx.fillStyle = "#FFC531"; ell(ctx, ex, ey, er * 0.55, er * 0.55);
+      ctx.fillStyle = "#1A1210"; ell(ctx, ex, ey, er * 0.16, er * 0.42);
+      ctx.fillStyle = "#FFFFFF"; ell(ctx, ex - er * 0.22, ey - er * 0.25, er * 0.12, er * 0.12);
+      ctx.restore();
+    });
+    const mx = L.mouth.x, my = L.mouth.y, mw = 0.36 * w, mh = 0.03 * w + L.open * 0.3 * w;
+    ctx.save();
+    ctx.beginPath(); ctx.ellipse(mx, my, mw, mh, 0, 0, Math.PI * 2);
+    ctx.fillStyle = "#4A0E1C"; ctx.fill(); ctx.clip();
+    ctx.fillStyle = "#E8607A"; ell(ctx, mx, my + mh * 0.9, mw * 0.55, mh * 0.6);
+    ctx.fillStyle = "#FFFDF2";
+    const n = 7;
+    for (let i = 0; i < n; i++) {
+      const x = mx - mw + (i + 0.5) * (2 * mw / n);
+      ctx.beginPath(); ctx.moveTo(x - mw / n * 0.9, my - mh - 1); ctx.lineTo(x + mw / n * 0.9, my - mh - 1);
+      ctx.lineTo(x, my - mh + 0.09 * w); ctx.closePath(); ctx.fill();
+    }
+    for (const sx of [-1, 1]) {
+      const x = mx + sx * mw * 0.5;
+      ctx.beginPath(); ctx.moveTo(x - 0.04 * w, my + mh + 1); ctx.lineTo(x + 0.04 * w, my + mh + 1);
+      ctx.lineTo(x, my + mh - 0.1 * w); ctx.closePath(); ctx.fill();
+    }
+    ctx.restore();
+    ctx.strokeStyle = "#2C6A18"; ctx.lineWidth = 0.02 * w;
+    ctx.beginPath(); ctx.ellipse(mx, my, mw, mh, 0, 0, Math.PI * 2); ctx.stroke();
+  },
+  robot(ctx, L) {
+    const { w, u } = L;
+    const top = -0.8 * w, bot = Math.max(0.74 * w, L.chin.y + 0.16 * w), hw = 0.62 * w;
+    ctx.fillStyle = "#5E6B7A";
+    for (const sx of [-1, 1]) { rrect(ctx, sx > 0 ? hw - 0.02 * w : -hw - 0.1 * w, -0.15 * w, 0.12 * w, 0.34 * w, 0.04 * w); ctx.fill(); }
+    ctx.strokeStyle = "#5E6B7A"; ctx.lineWidth = 0.03 * w;
+    ctx.beginPath(); ctx.moveTo(0, top); ctx.lineTo(0, top - 0.25 * w); ctx.stroke();
+    ctx.fillStyle = Math.sin(L.t * 6) > 0 ? "#FF3B5C" : "#7A1E2C"; ell(ctx, 0, top - 0.28 * w, 0.06 * w, 0.06 * w);
+    const g = ctx.createLinearGradient(-hw, 0, hw, 0);
+    g.addColorStop(0, "#8D99A8"); g.addColorStop(0.4, "#DCE3EA"); g.addColorStop(1, "#7A8696");
+    rrect(ctx, -hw, top, 2 * hw, bot - top, 0.14 * w);
+    ctx.fillStyle = g; ctx.fill(); ctx.strokeStyle = "#4B5563"; ctx.lineWidth = 0.025 * w; ctx.stroke();
+    ctx.fillStyle = "#6B7684";
+    for (const [x, y] of [[-hw + 0.08 * w, top + 0.08 * w], [hw - 0.08 * w, top + 0.08 * w], [-hw + 0.08 * w, bot - 0.08 * w], [hw - 0.08 * w, bot - 0.08 * w]]) ell(ctx, x, y, 0.03 * w, 0.03 * w);
+    rrect(ctx, -0.5 * w, -0.17 * w, w, 0.3 * w, 0.08 * w); ctx.fillStyle = "#1A2230"; ctx.fill();
+    ctx.save();
+    ctx.shadowColor = "#6EE7FF"; ctx.shadowBlur = 0.08 * w; ctx.fillStyle = "#7DF0FF";
+    [[-1, L.eyeL], [1, L.eyeR]].forEach(([sx, o]) => {
+      const h = Math.max(0.02 * w, 0.14 * w * o);
+      rrect(ctx, sx * 0.55 * u - 0.11 * w, -0.02 * w - h / 2, 0.22 * w, h, Math.min(0.03 * w, h / 2)); ctx.fill();
+    });
+    ctx.restore();
+    const mx = L.mouth.x, my = L.mouth.y, mw = 0.5 * w, mh = 0.06 * w + L.open * 0.28 * w;
+    rrect(ctx, mx - mw / 2, my - mh / 2, mw, mh, 0.03 * w); ctx.fillStyle = "#1A2230"; ctx.fill();
+    ctx.save(); ctx.clip();
+    ctx.strokeStyle = "#7DF0FF"; ctx.lineWidth = 0.012 * w;
+    for (let x = mx - mw / 2 + mw / 8; x < mx + mw / 2 - 1; x += mw / 8) { ctx.beginPath(); ctx.moveTo(x, my - mh / 2); ctx.lineTo(x, my + mh / 2); ctx.stroke(); }
+    ctx.restore();
+  },
+  alien(ctx, L) {
+    const { w } = L;
+    const y0 = -0.05 * w, rx = 0.68 * w, ryTop = 0.95 * w, chinY = Math.max(0.72 * w, L.chin.y + 0.14 * w);
+    ctx.strokeStyle = "#4FA83A"; ctx.lineWidth = 0.025 * w; ctx.lineCap = "round";
+    for (const sx of [-1, 1]) {
+      ctx.beginPath(); ctx.moveTo(sx * 0.22 * w, y0 - ryTop * 0.9);
+      ctx.quadraticCurveTo(sx * 0.3 * w, y0 - ryTop * 1.2, sx * 0.42 * w, y0 - ryTop * 1.28); ctx.stroke();
+      ctx.fillStyle = "#FFD23F"; ell(ctx, sx * 0.42 * w, y0 - ryTop * 1.28, 0.05 * w, 0.05 * w);
+    }
+    const g = ctx.createRadialGradient(-0.2 * w, -0.45 * w, 0.1 * w, 0, -0.1 * w, 1.1 * w);
+    g.addColorStop(0, "#C8FF9A"); g.addColorStop(1, "#5BB548");
+    ctx.beginPath();
+    ctx.ellipse(0, y0, rx, ryTop, 0, Math.PI, Math.PI * 2);
+    ctx.quadraticCurveTo(rx * 0.9, chinY * 0.75, 0, chinY);
+    ctx.quadraticCurveTo(-rx * 0.9, chinY * 0.75, -rx, y0);
+    ctx.closePath();
+    ctx.fillStyle = g; ctx.fill(); ctx.strokeStyle = "#3F8A30"; ctx.lineWidth = 0.02 * w; ctx.stroke();
+    [[-1, L.eyeL], [1, L.eyeR]].forEach(([sx, o]) => {
+      const open = Math.max(0.1, o);
+      ctx.save(); ctx.translate(sx * 0.28 * w, 0.02 * w); ctx.rotate(-sx * 0.5);
+      ctx.fillStyle = "#0E0B16"; ell(ctx, 0, 0, 0.22 * w, 0.12 * w * open);
+      if (open > 0.4) { ctx.fillStyle = "rgba(255,255,255,.85)"; ell(ctx, -0.07 * w * sx, -0.04 * w * open, 0.04 * w, 0.025 * w); }
+      ctx.restore();
+    });
+    ctx.fillStyle = "#3F8A30";
+    for (const sx of [-1, 1]) ell(ctx, L.nose.x + sx * 0.04 * w, L.nose.y, 0.015 * w, 0.01 * w);
+    ctx.fillStyle = "#1E3A16";
+    ell(ctx, L.mouth.x, L.mouth.y, 0.12 * w, 0.012 * w + L.open * 0.16 * w);
+  },
+};
+
+function faceFrame(f) {
+  const c = Math.cos(f.roll), s = Math.sin(f.roll);
+  const mid = { x: (f.eL.cx + f.eR.cx) / 2, y: (f.eL.cy + f.eR.cy) / 2 };
+  const toLocal = (p) => { const dx = p.x - mid.x, dy = p.y - mid.y; return { x: dx * c + dy * s, y: -dx * s + dy * c }; };
+  return { mid, toLocal };
+}
+
+function renderMask(now) {
+  const f = state.face;
+  if (!f || now - state.lastSeen > 600) return;
+  const { mid, toLocal } = faceFrame(f);
+  const L = {
+    w: f.faceW, u: f.unit, t: now / 1000,
+    mouth: toLocal({ x: f.m.cx, y: f.m.cy }), chin: toLocal(f.chin), nose: toLocal(f.nose),
+    open: clamp((f.mouthOpen - 0.05) / 0.4, 0, 1),
+    eyeL: clamp((f.eyeOpenL - 0.11) / 0.15, 0, 1),
+    eyeR: clamp((f.eyeOpenR - 0.11) / 0.15, 0, 1),
+  };
+  octx.save();
+  octx.translate(mid.x, mid.y); octx.rotate(f.roll);
+  MASKS[state.mask](octx, L);
+  octx.restore();
+}
+
+// ---------- Mouth effects ----------
+const parts = [];
+let lastPT = 0;
+const RAINBOW = ["#FF3B3B", "#FF9A1F", "#FFE23B", "#4CD964", "#3BA7FF", "#9B5CFF"];
+
+function spawnFx(f, open, dt) {
+  const dx = -Math.sin(f.roll), dy = Math.cos(f.roll);   // face "down"
+  const px = Math.cos(f.roll), py = Math.sin(f.roll);    // face "right"
+  const u = f.unit, ox = f.m.cx, oy = f.m.cy;
+  const R = Math.random;
+  if (state.mouthFx === "fire") {
+    const n = Math.round(open * 6 * dt);
+    for (let i = 0; i < n; i++) {
+      const sp = (R() - 0.5) * 0.9, v = (0.05 + R() * 0.05) * u;
+      parts.push({ k: "fire", x: ox + (R() - 0.5) * 0.2 * u, y: oy, vx: (dx + px * sp) * v, vy: (dy + py * sp) * v, life: 0, max: 30 + R() * 20, s: 0.12 * u * (0.6 + open), u });
+    }
+  } else if (state.mouthFx === "rainbow") {
+    const v = 0.07 * u;
+    parts.push({ k: "rain", x: ox, y: oy, vx: dx * v, vy: dy * v, life: 0, max: 70, s: 0.6 * u * (0.4 + open * 0.6), roll: f.roll, u });
+    if (dt > 1.5) parts.push({ k: "rain", x: ox + dx * v * 0.5, y: oy + dy * v * 0.5, vx: dx * v, vy: dy * v, life: 0, max: 70, s: 0.6 * u * (0.4 + open * 0.6), roll: f.roll, u });
+  } else if (state.mouthFx === "bubbles") {
+    if (R() < open * 0.35 * dt) {
+      const sp = (R() - 0.5) * 1.6, v = 0.035 * u;
+      parts.push({ k: "bub", x: ox, y: oy, vx: (dx + px * sp) * v, vy: (dy + py * sp) * v, life: 0, max: 140 + R() * 80, s: (0.07 + R() * 0.14) * u, ph: R() * 6, u });
+    }
+  }
+  while (parts.length > 500) parts.shift();
+}
+
+function runFx(now) {
+  const dt = lastPT ? clamp((now - lastPT) / 16.67, 0.2, 3) : 1;
+  lastPT = now;
+  const f = state.face;
+  if (state.mouthFx !== "none" && f && now - state.lastSeen < 300) {
+    const open = clamp((f.mouthOpen - 0.05) / 0.4, 0, 1);
+    if (open > 0.2) spawnFx(f, open, dt);
+  }
+  for (let i = parts.length - 1; i >= 0; i--) {
+    const p = parts[i];
+    p.life += dt;
+    if (p.life >= p.max) { parts.splice(i, 1); continue; }
+    if (p.k === "fire") { p.vx *= 0.985; p.vy = p.vy * 0.985 - 0.004 * p.u * dt; }
+    else if (p.k === "rain") { p.vy += 0.0025 * p.u * dt; }
+    else if (p.k === "bub") { p.vx *= 0.97; p.vy = p.vy * 0.97 - 0.0012 * p.u * dt; p.x += Math.sin(p.life * 0.08 + p.ph) * 0.004 * p.u * dt; }
+    p.x += p.vx * dt; p.y += p.vy * dt;
+  }
+  const ctx = octx;
+  ctx.save();
+  for (const p of parts) {
+    const t = p.life / p.max;
+    if (p.k === "fire") {
+      ctx.globalCompositeOperation = "lighter";
+      ctx.fillStyle = `hsla(${50 - 50 * t}, 100%, ${58 - 20 * t}%, ${(1 - t) * 0.42})`;
+      const r = p.s * (0.8 + t * 2.2);
+      ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, Math.PI * 2); ctx.fill();
+    } else if (p.k === "rain") {
+      ctx.globalCompositeOperation = "source-over";
+      ctx.globalAlpha = t > 0.7 ? (1 - t) / 0.3 : 1;
+      ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.roll);
+      const bw = (p.s * (1 + t * 0.7)) / 6, seg = 0.12 * p.u;
+      RAINBOW.forEach((col, j) => { ctx.fillStyle = col; ctx.fillRect(-3 * bw + j * bw, -seg / 2, bw + 0.5, seg); });
+      ctx.restore();
+      ctx.globalAlpha = 1;
+    } else {
+      ctx.globalCompositeOperation = "source-over";
+      ctx.globalAlpha = t > 0.85 ? (1 - t) / 0.15 : 1;
+      ctx.beginPath(); ctx.arc(p.x, p.y, p.s, 0, Math.PI * 2);
+      ctx.fillStyle = "rgba(180,230,255,.18)"; ctx.fill();
+      ctx.strokeStyle = "rgba(255,255,255,.85)"; ctx.lineWidth = Math.max(1.5, p.s * 0.08); ctx.stroke();
+      ctx.beginPath(); ctx.arc(p.x, p.y, p.s * 0.7, Math.PI * 1.1, Math.PI * 1.45);
+      ctx.strokeStyle = "rgba(255,255,255,.9)"; ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
+  }
+  ctx.restore();
+}
 
 function renderAccessories(now) {
   const f = state.face;
@@ -600,7 +849,11 @@ function loop() {
     } catch (e) { console.warn(e); }
   }
   if (state.mode === "face") renderFace(W, H, now);
-  else { octx.drawImage(src, 0, 0); renderAccessories(now); }
+  else {
+    octx.drawImage(src, 0, 0);
+    if (state.mode === "mask") renderMask(now); else renderAccessories(now);
+    runFx(now);
+  }
   if (!state.landmarker) {
     octx.fillStyle = "rgba(43,22,64,.7)";
     octx.fillRect(0, H / 2 - 40, W, 80);
@@ -655,6 +908,8 @@ $("modeRow").onclick = (e) => {
   pressGroup($("modeRow"), b); state.mode = b.dataset.mode;
   $("bgRow").style.display = state.mode === "face" ? "" : "none";
   $("hatRow").style.display = $("glassRow").style.display = state.mode === "acc" ? "" : "none";
+  $("maskRow").style.display = state.mode === "mask" ? "" : "none";
+  $("mouthRow").style.display = state.mode === "acc" || state.mode === "mask" ? "" : "none";
   $("sizeRow").hidden = state.mode !== "face";
   updateHint();
 };
@@ -681,6 +936,15 @@ $("hatRow").onclick = (e) => {
 $("glassRow").onclick = (e) => {
   const b = e.target.closest("[data-glasses]"); if (!b) return;
   pressGroup($("glassRow"), b); state.glasses = b.dataset.glasses;
+};
+$("maskRow").onclick = (e) => {
+  const b = e.target.closest("[data-mask]"); if (!b) return;
+  pressGroup($("maskRow"), b); state.mask = b.dataset.mask;
+};
+$("mouthRow").onclick = (e) => {
+  const b = e.target.closest("[data-fx]"); if (!b) return;
+  pressGroup($("mouthRow"), b); state.mouthFx = b.dataset.fx;
+  if (state.mouthFx !== "none") toast("Open your mouth wide!");
 };
 $("size").oninput = (e) => { state.size = parseFloat(e.target.value); };
 
