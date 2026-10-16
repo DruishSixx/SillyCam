@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Silly Cam">
+<meta name="theme-color" content="#2B1640">
+<title>Silly Cam</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --grape: #2B1640;
+    --grape-2: #3D2159;
+    --grape-3: #563080;
+    --sun: #FFD23F;
+    --gum: #FF5C8A;
+    --sky: #6EC6FF;
+    --cream: #FFF6E0;
+    --muted: #CBB8E3;
+    color-scheme: dark;
+    box-sizing: border-box;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  *, *::before, *::after { box-sizing: inherit; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    background: var(--grape);
+    color: var(--cream);
+    font-family: "Baloo 2", "Trebuchet MS", "Segoe UI", system-ui, sans-serif;
+    display: flex; flex-direction: column;
+    overflow: hidden;
+    -webkit-user-select: none; user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  button { font: inherit; color: inherit; cursor: pointer; }
+  button:focus-visible, input:focus-visible { outline: 3px solid var(--sky); outline-offset: 2px; }
+
+  header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 8px 16px 4px;
+  }
+  .logo { font-size: 1.75rem; font-weight: 800; letter-spacing: -0.02em; line-height: 1; transform: rotate(-3deg); }
+  .logo span { display: inline-block; }
+  .logo span:nth-child(odd) { transform: translateY(-2px); }
+  .gallery-btn {
+    background: var(--grape-2); border: 2px solid var(--grape-3); border-radius: 999px;
+    padding: 4px 14px 2px; font-weight: 700; font-size: 1rem;
+  }
+  .gallery-btn b { color: var(--sun); }
+
+  .stage {
+    flex: 1; min-height: 0; position: relative;
+    margin: 4px 12px; border-radius: 28px; overflow: hidden;
+    background: #000;
+    touch-action: none;
+  }
+  #out { width: 100%; height: 100%; object-fit: contain; display: block; }
+  .stage-msg {
+    position: absolute; inset: 0; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; text-align: center; gap: 12px;
+    padding: 24px; background: var(--grape-2); font-size: 1.15rem; line-height: 1.35;
+  }
+  .stage-msg[hidden] { display: none; }
+  .big-btn {
+    background: var(--sun); color: var(--grape); border: 0; border-radius: 999px;
+    padding: 10px 26px 7px; font-weight: 800; font-size: 1.25rem;
+  }
+  .rec-timer {
+    position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
+    background: var(--gum); color: #fff; font-weight: 800; border-radius: 999px;
+    padding: 2px 14px 0; font-size: 1.05rem;
+  }
+  .rec-timer[hidden] { display: none; }
+  .hint {
+    position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%);
+    background: rgba(43,22,64,.75); border-radius: 999px; padding: 2px 12px 0;
+    font-size: .9rem; color: var(--cream); white-space: nowrap; pointer-events: none;
+  }
+  .hint[hidden] { display: none; }
+
+  .controls { padding: 6px 12px 10px; display: flex; flex-direction: column; gap: 8px; }
+  .row { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; padding: 2px; }
+  .row::-webkit-scrollbar { display: none; }
+  .chip {
+    flex: none; border: 2px solid var(--grape-3); background: var(--grape-2);
+    border-radius: 16px; padding: 4px 12px 2px; font-weight: 700; font-size: 1rem;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .chip[aria-pressed="true"] { background: var(--sky); border-color: var(--sky); color: var(--grape); }
+  .chip .em { font-size: 1.2rem; }
+  .size-row { display: flex; align-items: center; gap: 10px; font-weight: 700; color: var(--muted); }
+  .size-row[hidden] { display: none; }
+  input[type=range] { flex: 1; accent-color: var(--sun); }
+
+  .rec-row { display: flex; justify-content: center; padding-top: 2px; }
+  .rec {
+    width: 76px; height: 76px; border-radius: 50%; border: 6px solid var(--cream);
+    background: var(--sun); transition: border-radius .25s, transform .15s, background .2s;
+  }
+  .rec:active { transform: scale(.92); }
+  .rec.on { background: var(--gum); border-radius: 30%; animation: wobble 1.2s ease-in-out infinite; }
+  @keyframes wobble { 50% { border-radius: 42% 30% 38% 28%; transform: rotate(6deg); } }
+
+  /* Sheets */
+  .sheet {
+    position: fixed; inset: 0; z-index: 20; background: var(--grape);
+    display: flex; flex-direction: column;
+    padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  .sheet[hidden] { display: none; }
+  .sheet-head { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; }
+  .sheet-head h2 { margin: 0; font-size: 1.6rem; font-weight: 800; }
+  .close {
+    background: var(--grape-2); border: 2px solid var(--grape-3); border-radius: 999px;
+    padding: 2px 16px 0; font-weight: 700;
+  }
+  .grid {
+    flex: 1; overflow-y: auto; padding: 4px 16px 16px;
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; align-content: start;
+  }
+  .clip {
+    border: 0; padding: 0; background: var(--grape-2); border-radius: 18px; overflow: hidden;
+    aspect-ratio: 3 / 4; position: relative;
+  }
+  .clip img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .clip .len {
+    position: absolute; bottom: 6px; right: 8px; background: rgba(43,22,64,.8);
+    border-radius: 999px; padding: 0 8px; font-weight: 700; font-size: .85rem;
+  }
+  .empty { grid-column: 1 / -1; text-align: center; color: var(--muted); font-size: 1.15rem; padding: 40px 12px; }
+
+  .player-wrap { flex: 1; min-height: 0; margin: 0 12px; border-radius: 28px; overflow: hidden; background: #000; position: relative; }
+  #player { width: 100%; height: 100%; object-fit: contain; display: block; }
+  .tap-play {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    font-size: 4rem; background: transparent; border: 0; color: rgba(255,246,224,.9);
+  }
+  .speeds { display: flex; gap: 8px; justify-content: center; padding: 12px 12px 4px; flex-wrap: wrap; }
+  .speed { min-width: 58px; justify-content: center; }
+  .player-foot { display: flex; justify-content: space-between; align-items: center; padding: 6px 16px 12px; gap: 8px; }
+  .toggle { display: flex; align-items: center; gap: 8px; font-weight: 700; }
+  .toggle input { width: 22px; height: 22px; accent-color: var(--sun); }
+  .del { background: transparent; border: 2px solid var(--gum); color: var(--gum); border-radius: 999px; padding: 2px 14px 0; font-weight: 700; }
+
+  .toast {
+    position: fixed; left: 50%; bottom: calc(110px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%);
+    background: var(--sun); color: var(--grape); font-weight: 800; border-radius: 999px; padding: 6px 18px 3px;
+    z-index: 30; transition: opacity .3s; opacity: 0; pointer-events: none;
+  }
+  .toast.show { opacity: 1; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .rec.on { animation: none; }
+  }
+</style>
+</head>
+<body>
+  <header>
+    <div class="logo" aria-label="Silly Cam"><span>S</span><span>i</span><span>l</span><span>l</span><span>y</span> <span>C</span><span>a</span><span>m</span></div>
+    <button class="gallery-btn" id="galleryBtn">My videos <b id="count">0</b></button>
+  </header>
+
+  <div class="stage" id="stage">
+    <canvas id="out"></canvas>
+    <div class="rec-timer" id="recTimer" hidden>0:00</div>
+    <div class="hint" id="hint" hidden>Drag to move your face</div>
+    <div class="stage-msg" id="startMsg">
+      <div style="font-size:3rem">🎃</div>
+      <div>Make silly faces and silly videos.<br>Everything stays on this phone.</div>
+      <button class="big-btn" id="startBtn">Turn on camera</button>
+    </div>
+  </div>
+
+  <div class="controls">
+    <div class="row" id="modeRow" role="group" aria-label="Effect">
+      <button class="chip" data-mode="face" aria-pressed="true"><span class="em">👀</span>Eyes &amp; mouth</button>
+      <button class="chip" data-mode="plain" aria-pressed="false"><span class="em">🙂</span>Normal</button>
+    </div>
+    <div class="row" id="bgRow" role="group" aria-label="Picture">
+      <button class="chip" data-bg="pumpkin" aria-pressed="true"><span class="em">🎃</span>Pumpkin</button>
+      <button class="chip" data-bg="potato" aria-pressed="false"><span class="em">🥔</span>Potato</button>
+      <button class="chip" data-bg="moon" aria-pressed="false"><span class="em">🌕</span>Moon</button>
+      <button class="chip" data-bg="orange" aria-pressed="false"><span class="em">🍊</span>Orange</button>
+      <button class="chip" data-bg="photo" aria-pressed="false"><span class="em">🖼️</span>My picture</button>
+    </div>
+    <label class="size-row" id="sizeRow">Face size
+      <input type="range" id="size" min="0.5" max="1.8" step="0.05" value="1">
+    </label>
+    <div class="rec-row">
+      <button class="rec" id="recBtn" aria-label="Start recording"></button>
+    </div>
+  </div>
+  <input type="file" id="photoInput" accept="image/*" hidden>
+
+  <!-- Gallery -->
+  <div class="sheet" id="gallery" hidden>
+    <div class="sheet-head">
+      <h2>My videos</h2>
+      <button class="close" id="galleryClose">Back</button>
+    </div>
+    <div class="grid" id="grid"></div>
+  </div>
+
+  <!-- Player -->
+  <div class="sheet" id="playerSheet" hidden>
+    <div class="sheet-head">
+      <h2>Watch</h2>
+      <button class="close" id="playerClose">Back</button>
+    </div>
+    <div class="player-wrap">
+      <video id="player" playsinline webkit-playsinline disablepictureinpicture controlslist="nodownload noremoteplayback" loop></video>
+      <button class="tap-play" id="tapPlay" aria-label="Play">▶</button>
+    </div>
+    <div class="speeds" id="speeds" role="group" aria-label="Speed">
+      <button class="chip speed" data-rate="0.25" aria-pressed="false">🐌 ¼×</button>
+      <button class="chip speed" data-rate="0.5" aria-pressed="false">🐢 ½×</button>
+      <button class="chip speed" data-rate="1" aria-pressed="true">1×</button>
+      <button class="chip speed" data-rate="2" aria-pressed="false">🐇 2×</button>
+      <button class="chip speed" data-rate="3" aria-pressed="false">🚀 3×</button>
+    </div>
+    <div class="player-foot">
+      <label class="toggle"><input type="checkbox" id="sillyVoice" checked> Silly voice</label>
+      <button class="del" id="delBtn">Delete</button>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <video id="cam" playsinline webkit-playsinline muted autoplay style="display:none"></video>
+
+<script type="module">
+import { FaceLandmarker, FilesetResolver } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/vision_bundle.mjs";
+
+const $ = (id) => document.getElementById(id);
+const cam = $("cam"), out = $("out"), octx = out.getContext("2d");
+const src = document.createElement("canvas"), sctx = src.getContext("2d");
+const bgCanvas = document.createElement("canvas"), bctx = bgCanvas.getContext("2d");
+const feat = document.createElement("canvas"), fctx = feat.getContext("2d");
+
+const state = {
+  mode: "face", bg: "pumpkin", photo: null,
+  size: 1, offX: 0, offY: 0,
+  landmarker: null, stream: null, lastVideoTime: -1,
+  face: null, lastSeen: 0,
+  recorder: null, chunks: [], recStart: 0,
+};
+
+// ---------- Face landmark indices (MediaPipe Face Mesh) ----------
+const LEFT_EYE  = [33, 7, 163, 144, 145, 153, 154, 155, 133, 173, 157, 158, 159, 160, 161, 246];
+const RIGHT_EYE = [263, 249, 390, 373, 374, 380, 381, 382, 362, 398, 384, 385, 386, 387, 388, 466];
+const MOUTH     = [61, 146, 91, 181, 84, 17, 314, 405, 321, 375, 291, 409, 270, 269, 267, 0, 37, 39, 40, 185];
+
+function boxOf(pts, idx, W, H) {
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  for (const i of idx) {
+    const x = (1 - pts[i].x) * W, y = pts[i].y * H; // mirrored for selfie view
+    if (x < minX) minX = x; if (x > maxX) maxX = x;
+    if (y < minY) minY = y; if (y > maxY) maxY = y;
+  }
+  return { cx: (minX + maxX) / 2, cy: (minY + maxY) / 2, w: maxX - minX, h: maxY - minY };
+}
+
+function lerp(a, b, t) { return a + (b - a) * t; }
+
+function updateFace(pts, W, H) {
+  const a = boxOf(pts, LEFT_EYE, W, H), b = boxOf(pts, RIGHT_EYE, W, H), m = boxOf(pts, MOUTH, W, H);
+  const eL = a.cx < b.cx ? a : b, eR = a.cx < b.cx ? b : a; // screen left / right
+  const unit = Math.hypot(eR.cx - eL.cx, eR.cy - eL.cy);
+  const roll = Math.atan2(eR.cy - eL.cy, eR.cx - eL.cx);
+  const next = { eL, eR, m, unit, roll };
+  const f = state.face;
+  if (!f) { state.face = next; return; }
+  const t = 0.55; // smoothing
+  for (const k of ["eL", "eR", "m"]) for (const p of ["cx", "cy", "w", "h"]) f[k][p] = lerp(f[k][p], next[k][p], t);
+  f.unit = lerp(f.unit, unit, t);
+  f.roll = lerp(f.roll, roll, t);
+}
+
+// ---------- Backgrounds ----------
+function blob(ctx, cx, cy, rx, ry, bump, seed) {
+  ctx.beginPath();
+  for (let i = 0; i <= 64; i++) {
+    const a = (i / 64) * Math.PI * 2;
+    const n = 1 + bump * (Math.sin(a * 3 + seed) * 0.6 + Math.sin(a * 5 + seed * 2) * 0.4);
+    const x = cx + Math.cos(a) * rx * n, y = cy + Math.sin(a) * ry * n;
+    i ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+  }
+  ctx.closePath();
+}
+function stars(ctx, w, h, n) {
+  ctx.fillStyle = "rgba(255,246,224,.85)";
+  for (let i = 0; i < n; i++) {
+    const x = (Math.sin(i * 91.7) * 0.5 + 0.5) * w, y = (Math.sin(i * 47.3 + 2) * 0.5 + 0.5) * h;
+    const r = 1 + (i % 3);
+    ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+  }
+}
+
+const BACKGROUNDS = {
+  pumpkin(ctx, w, h, R) {
+    const g = ctx.createLinearGradient(0, 0, 0, h);
+    g.addColorStop(0, "#1D0F33"); g.addColorStop(1, "#4A2366");
+    ctx.fillStyle = g; ctx.fillRect(0, 0, w, h); stars(ctx, w, h, 40);
+    const cx = w / 2, cy = h / 2 + R * 0.08;
+    ctx.fillStyle = "#3E6B2A"; ctx.save(); ctx.translate(cx, cy - R * 0.85); ctx.rotate(0.15);
+    ctx.fillRect(-R * 0.07, -R * 0.28, R * 0.14, R * 0.32); ctx.restore();
+    const lobes = [-0.62, -0.32, 0.32, 0.62, 0];
+    for (const o of lobes) {
+      const lg = ctx.createRadialGradient(cx + o * R, cy - R * 0.3, R * 0.1, cx + o * R, cy, R * 0.9);
+      lg.addColorStop(0, "#FFA53A"); lg.addColorStop(1, "#D9560F");
+      ctx.fillStyle = lg; ctx.beginPath();
+      ctx.ellipse(cx + o * R, cy, R * (o === 0 ? 0.48 : 0.45), R * 0.86, 0, 0, Math.PI * 2);
+      ctx.fill(); ctx.strokeStyle = "rgba(140,45,0,.35)"; ctx.lineWidth = R * 0.02; ctx.stroke();
+    }
+  },
+  potato(ctx, w, h, R) {
+    ctx.fillStyle = "#9ED8C3"; ctx.fillRect(0, 0, w, h);
+    const cx = w / 2, cy = h / 2;
+    const g = ctx.createRadialGradient(cx - R * 0.3, cy - R * 0.4, R * 0.1, cx, cy, R * 1.1);
+    g.addColorStop(0, "#E2B97A"); g.addColorStop(1, "#A8743B");
+    ctx.fillStyle = g; blob(ctx, cx, cy, R * 0.82, R * 1.0, 0.06, 1.3); ctx.fill();
+    ctx.fillStyle = "rgba(110,70,30,.45)";
+    [[-0.5, -0.6], [0.55, -0.2], [-0.6, 0.35], [0.4, 0.75], [0.1, -0.85], [0.65, 0.4]].forEach(([x, y], i) => {
+      ctx.beginPath(); ctx.ellipse(cx + x * R, cy + y * R, R * 0.035, R * 0.022, i, 0, Math.PI * 2); ctx.fill();
+    });
+  },
+  moon(ctx, w, h, R) {
+    ctx.fillStyle = "#0D0A24"; ctx.fillRect(0, 0, w, h); stars(ctx, w, h, 70);
+    const cx = w / 2, cy = h / 2;
+    const g = ctx.createRadialGradient(cx - R * 0.35, cy - R * 0.35, R * 0.1, cx, cy, R);
+    g.addColorStop(0, "#F4F1E4"); g.addColorStop(1, "#A9A69B");
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(cx, cy, R * 0.95, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "rgba(120,116,104,.35)";
+    [[-0.55, -0.55, 0.13], [0.6, -0.45, 0.09], [-0.65, 0.4, 0.1], [0.55, 0.55, 0.14], [0.05, 0.85, 0.07], [0.2, -0.78, 0.06]].forEach(([x, y, r]) => {
+      ctx.beginPath(); ctx.arc(cx + x * R, cy + y * R, r * R, 0, Math.PI * 2); ctx.fill();
+    });
+  },
+  orange(ctx, w, h, R) {
+    ctx.fillStyle = "#FFE7F0"; ctx.fillRect(0, 0, w, h);
+    const cx = w / 2, cy = h / 2 + R * 0.05;
+    const g = ctx.createRadialGradient(cx - R * 0.35, cy - R * 0.35, R * 0.1, cx, cy, R);
+    g.addColorStop(0, "#FFB547"); g.addColorStop(1, "#F07A12");
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(cx, cy, R * 0.92, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "rgba(200,90,0,.25)";
+    for (let i = 0; i < 160; i++) {
+      const a = i * 2.39996, r = Math.sqrt(i / 160) * R * 0.88;
+      ctx.beginPath(); ctx.arc(cx + Math.cos(a) * r, cy + Math.sin(a) * r, R * 0.012, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.fillStyle = "#3F8F3A"; ctx.save(); ctx.translate(cx + R * 0.12, cy - R * 0.95); ctx.rotate(-0.5);
+    ctx.beginPath(); ctx.ellipse(R * 0.12, 0, R * 0.2, R * 0.08, 0, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+  },
+  photo(ctx, w, h) {
+    const img = state.photo;
+    if (!img) { ctx.fillStyle = "#3D2159"; ctx.fillRect(0, 0, w, h); return; }
+    const s = Math.max(w / img.width, h / img.height);
+    ctx.drawImage(img, (w - img.width * s) / 2, (h - img.height * s) / 2, img.width * s, img.height * s);
+  },
+};
+
+function redrawBg() {
+  const w = bgCanvas.width, h = bgCanvas.height;
+  if (!w || !h) return;
+  const R = Math.min(w, h) * 0.42;
+  bctx.clearRect(0, 0, w, h);
+  BACKGROUNDS[state.bg](bctx, w, h, R);
+}
+
+// ---------- Drawing a feature cut-out ----------
+function drawFeature(box, cropW, cropH, k, roll, tx, ty, alpha) {
+  const tw = Math.max(2, Math.round(cropW * k)), th = Math.max(2, Math.round(cropH * k));
+  if (feat.width !== tw || feat.height !== th) { feat.width = tw; feat.height = th; }
+  fctx.setTransform(1, 0, 0, 1, 0, 0);
+  fctx.globalCompositeOperation = "source-over";
+  fctx.clearRect(0, 0, tw, th);
+  fctx.translate(tw / 2, th / 2);
+  fctx.rotate(-roll);
+  fctx.scale(k, k);
+  fctx.drawImage(src, -box.cx, -box.cy);
+  // soft oval mask
+  fctx.setTransform(tw / 2, 0, 0, th / 2, tw / 2, th / 2);
+  fctx.globalCompositeOperation = "destination-in";
+  const g = fctx.createRadialGradient(0, 0, 0, 0, 0, 1);
+  g.addColorStop(0, "rgba(0,0,0,1)"); g.addColorStop(0.62, "rgba(0,0,0,1)"); g.addColorStop(1, "rgba(0,0,0,0)");
+  fctx.fillStyle = g; fctx.fillRect(-1, -1, 2, 2);
+  fctx.setTransform(1, 0, 0, 1, 0, 0);
+  fctx.globalCompositeOperation = "source-over";
+  octx.globalAlpha = alpha;
+  octx.drawImage(feat, tx - tw / 2, ty - th / 2);
+  octx.globalAlpha = 1;
+}
+
+function renderFace(W, H, now) {
+  octx.drawImage(bgCanvas, 0, 0);
+  const f = state.face;
+  if (!f) return;
+  const since = now - state.lastSeen;
+  const alpha = since < 400 ? 1 : Math.max(0, 1 - (since - 400) / 400);
+  if (alpha <= 0) return;
+  const R = Math.min(W, H) * 0.42;
+  const cx = W / 2 + state.offX, cy = H / 2 + state.offY;
+  const gap = 0.64 * R * state.size;     // eye-to-eye distance on the picture
+  const k = gap / Math.max(f.unit, 1);    // video px -> picture px
+  const u = f.unit;
+  const eyeW = u * 0.72, eyeH = u * 0.5;
+  drawFeature(f.eL, eyeW, eyeH, k, f.roll, cx - gap / 2, cy - 0.12 * R * state.size, alpha);
+  drawFeature(f.eR, eyeW, eyeH, k, f.roll, cx + gap / 2, cy - 0.12 * R * state.size, alpha);
+  const mW = Math.max(f.m.w * 1.35, u * 0.6), mH = Math.max(f.m.h * 1.5, u * 0.42);
+  drawFeature(f.m, mW, mH, k, f.roll, cx, cy + 0.42 * R * state.size, alpha);
+}
+
+// ---------- Main loop ----------
+function loop() {
+  requestAnimationFrame(loop);
+  const W = cam.videoWidth, H = cam.videoHeight;
+  if (!W || !H) return;
+  if (out.width !== W || out.height !== H) {
+    out.width = src.width = bgCanvas.width = W;
+    out.height = src.height = bgCanvas.height = H;
+    redrawBg();
+  }
+  sctx.setTransform(-1, 0, 0, 1, W, 0);
+  sctx.drawImage(cam, 0, 0, W, H);
+  sctx.setTransform(1, 0, 0, 1, 0, 0);
+  const now = performance.now();
+
+  if (state.mode === "plain") { octx.drawImage(src, 0, 0); return; }
+
+  if (state.landmarker && cam.currentTime !== state.lastVideoTime) {
+    state.lastVideoTime = cam.currentTime;
+    try {
+      const res = state.landmarker.detectForVideo(cam, now);
+      if (res.faceLandmarks && res.faceLandmarks.length) {
+        updateFace(res.faceLandmarks[0], W, H);
+        state.lastSeen = now;
+      }
+    } catch (e) { console.warn(e); }
+  }
+  renderFace(W, H, now);
+  if (!state.landmarker) {
+    octx.fillStyle = "rgba(43,22,64,.7)";
+    octx.fillRect(0, H / 2 - 40, W, 80);
+    octx.fillStyle = "#FFF6E0"; octx.textAlign = "center"; octx.textBaseline = "middle";
+    octx.font = `700 ${Math.round(Math.min(W, H) * 0.05)}px "Baloo 2", sans-serif`;
+    octx.fillText("Getting the face finder ready…", W / 2, H / 2);
+  }
+}
+
+// ---------- Startup ----------
+async function loadLandmarker() {
+  const files = await FilesetResolver.forVisionTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/wasm");
+  const opts = (delegate) => ({
+    baseOptions: {
+      modelAssetPath: "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task",
+      delegate,
+    },
+    runningMode: "VIDEO", numFaces: 1,
+  });
+  try { return await FaceLandmarker.createFromOptions(files, opts("GPU")); }
+  catch (e) { console.warn("GPU failed, using CPU", e); return await FaceLandmarker.createFromOptions(files, opts("CPU")); }
+}
+
+$("startBtn").onclick = async () => {
+  $("startBtn").disabled = true;
+  try {
+    state.stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 } },
+      audio: true,
+    });
+  } catch (e) {
+    try { state.stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } }); toast("No microphone, videos will be silent"); }
+    catch (e2) {
+      $("startMsg").querySelector("div:nth-child(2)").textContent = "The camera is blocked. Allow camera access for this page in your browser settings, then tap the button again.";
+      $("startBtn").disabled = false; return;
+    }
+  }
+  cam.srcObject = state.stream;
+  await cam.play().catch(() => {});
+  $("startMsg").hidden = true;
+  updateHint();
+  requestAnimationFrame(loop);
+  loadLandmarker().then((lm) => { state.landmarker = lm; })
+    .catch((e) => { console.error(e); toast("Face finder didn’t load. Check the internet and reload."); });
+};
+
+// ---------- Controls ----------
+function pressGroup(row, btn) { row.querySelectorAll(".chip").forEach((b) => b.setAttribute("aria-pressed", String(b === btn))); }
+
+$("modeRow").onclick = (e) => {
+  const b = e.target.closest("[data-mode]"); if (!b) return;
+  pressGroup($("modeRow"), b); state.mode = b.dataset.mode;
+  $("bgRow").style.display = state.mode === "face" ? "" : "none";
+  $("sizeRow").hidden = state.mode !== "face";
+  updateHint();
+};
+$("bgRow").onclick = (e) => {
+  const b = e.target.closest("[data-bg]"); if (!b) return;
+  if (b.dataset.bg === "photo") { $("photoInput").click(); return; }
+  pressGroup($("bgRow"), b); state.bg = b.dataset.bg; state.offX = state.offY = 0; redrawBg();
+};
+$("photoInput").onchange = () => {
+  const file = $("photoInput").files[0]; if (!file) return;
+  const img = new Image();
+  img.onload = () => {
+    state.photo = img; state.bg = "photo"; state.offX = state.offY = 0;
+    pressGroup($("bgRow"), $("bgRow").querySelector('[data-bg="photo"]'));
+    redrawBg(); toast("Drag to put your face where you want it");
+  };
+  img.src = URL.createObjectURL(file);
+  $("photoInput").value = "";
+};
+$("size").oninput = (e) => { state.size = parseFloat(e.target.value); };
+
+function updateHint() { $("hint").hidden = state.mode !== "face" || !state.stream; }
+
+// drag to move the face on the picture
+let drag = null;
+function toCanvas(e) {
+  const r = out.getBoundingClientRect();
+  const s = Math.min(r.width / out.width, r.height / out.height);
+  return { x: (e.clientX - r.left - (r.width - out.width * s) / 2) / s, y: (e.clientY - r.top - (r.height - out.height * s) / 2) / s };
+}
+$("stage").addEventListener("pointerdown", (e) => {
+  if (state.mode !== "face" || !out.width) return;
+  const p = toCanvas(e); drag = { x: p.x, y: p.y, ox: state.offX, oy: state.offY };
+  $("stage").setPointerCapture(e.pointerId); $("hint").hidden = true;
+});
+$("stage").addEventListener("pointermove", (e) => {
+  if (!drag) return; const p = toCanvas(e);
+  state.offX = drag.ox + p.x - drag.x; state.offY = drag.oy + p.y - drag.y;
+});
+["pointerup", "pointercancel"].forEach((t) => $("stage").addEventListener(t, () => { drag = null; }));
+
+// ---------- Recording ----------
+function pickMime() {
+  const types = ["video/mp4;codecs=avc1", "video/mp4", "video/webm;codecs=vp9,opus", "video/webm;codecs=vp8,opus", "video/webm"];
+  return types.find((t) => window.MediaRecorder && MediaRecorder.isTypeSupported(t)) || "";
+}
+const MAX_SECONDS = 60;
+let timerInt = null;
+
+$("recBtn").onclick = () => (state.recorder ? stopRec() : startRec());
+
+function startRec() {
+  if (!state.stream || !out.width) { toast("Turn on the camera first"); return; }
+  const vs = out.captureStream(30);
+  state.stream.getAudioTracks().forEach((t) => vs.addTrack(t));
+  const mime = pickMime();
+  let rec;
+  try { rec = new MediaRecorder(vs, mime ? { mimeType: mime } : undefined); }
+  catch (e) { toast("Recording isn’t supported in this browser"); return; }
+  state.chunks = [];
+  rec.ondataavailable = (e) => { if (e.data && e.data.size) state.chunks.push(e.data); };
+  rec.onstop = saveClip;
+  rec.start(250);
+  state.recorder = rec; state.recStart = performance.now();
+  $("recBtn").classList.add("on"); $("recBtn").setAttribute("aria-label", "Stop recording");
+  $("recTimer").hidden = false; $("recTimer").textContent = "0:00";
+  timerInt = setInterval(() => {
+    const s = Math.floor((performance.now() - state.recStart) / 1000);
+    $("recTimer").textContent = `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+    if (s >= MAX_SECONDS) stopRec();
+  }, 250);
+}
+function stopRec() {
+  if (!state.recorder) return;
+  state.recDuration = (performance.now() - state.recStart) / 1000;
+  state.thumb = out.toDataURL("image/jpeg", 0.6);
+  state.recorder.stop(); state.recorder = null;
+  clearInterval(timerInt);
+  $("recBtn").classList.remove("on"); $("recBtn").setAttribute("aria-label", "Start recording");
+  $("recTimer").hidden = true;
+}
+async function saveClip() {
+  const type = state.chunks[0]?.type || pickMime() || "video/webm";
+  const blob = new Blob(state.chunks, { type });
+  const clip = { id: Date.now(), blob, thumb: state.thumb, dur: state.recDuration, type };
+  await db.put(clip);
+  refreshCount(); toast("Saved to My videos");
+}
+
+// ---------- Storage (stays inside this app) ----------
+const db = (() => {
+  let mem = [], idb = null;
+  const ready = new Promise((res) => {
+    try {
+      const req = indexedDB.open("silly-cam", 1);
+      req.onupgradeneeded = () => req.result.createObjectStore("clips", { keyPath: "id" });
+      req.onsuccess = () => { idb = req.result; res(); };
+      req.onerror = () => res();
+    } catch (e) { res(); }
+  });
+  const tx = (mode) => idb.transaction("clips", mode).objectStore("clips");
+  const wrap = (r) => new Promise((res, rej) => { r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); });
+  return {
+    async all() { await ready; if (!idb) return [...mem]; try { return await wrap(tx("readonly").getAll()); } catch (e) { return [...mem]; } },
+    async put(c) { await ready; if (!idb) { mem.push(c); return; } try { await wrap(tx("readwrite").put(c)); } catch (e) { mem.push(c); } },
+    async del(id) { await ready; mem = mem.filter((c) => c.id !== id); if (idb) try { await wrap(tx("readwrite").delete(id)); } catch (e) {} },
+  };
+})();
+
+async function refreshCount() { $("count").textContent = (await db.all()).length; }
+refreshCount();
+
+// ---------- Gallery & player ----------
+let current = null, currentUrl = null;
+
+$("galleryBtn").onclick = openGallery;
+$("galleryClose").onclick = () => { $("gallery").hidden = true; };
+
+async function openGallery() {
+  const clips = (await db.all()).sort((a, b) => b.id - a.id);
+  const grid = $("grid"); grid.innerHTML = "";
+  if (!clips.length) {
+    grid.innerHTML = '<div class="empty">No videos yet. Tap the yellow button to record one.</div>';
+  }
+  for (const c of clips) {
+    const b = document.createElement("button");
+    b.className = "clip"; b.setAttribute("aria-label", "Play video");
+    b.innerHTML = `<img alt="" src="${c.thumb}"><span class="len">${Math.max(1, Math.round(c.dur || 0))}s</span>`;
+    b.onclick = () => openPlayer(c);
+    grid.appendChild(b);
+  }
+  $("gallery").hidden = false;
+}
+
+function openPlayer(c) {
+  current = c;
+  if (currentUrl) URL.revokeObjectURL(currentUrl);
+  currentUrl = URL.createObjectURL(c.blob);
+  const p = $("player");
+  p.src = currentUrl;
+  setRate(1);
+  $("tapPlay").textContent = "▶"; $("tapPlay").style.opacity = 1;
+  $("playerSheet").hidden = false;
+  p.play().then(() => { $("tapPlay").style.opacity = 0; }).catch(() => {});
+}
+function closePlayer() {
+  const p = $("player"); p.pause(); p.removeAttribute("src"); p.load();
+  $("playerSheet").hidden = true;
+}
+$("playerClose").onclick = closePlayer;
+$("player").addEventListener("contextmenu", (e) => e.preventDefault());
+
+$("tapPlay").onclick = () => {
+  const p = $("player");
+  if (p.paused) { p.play(); $("tapPlay").style.opacity = 0; }
+  else { p.pause(); $("tapPlay").textContent = "▶"; $("tapPlay").style.opacity = 1; }
+};
+
+function applyPitch() {
+  const p = $("player"), keep = !$("sillyVoice").checked;
+  p.preservesPitch = keep; p.mozPreservesPitch = keep; p.webkitPreservesPitch = keep;
+}
+function setRate(r) {
+  const p = $("player"); applyPitch();
+  p.playbackRate = r; p.defaultPlaybackRate = r;
+  $("speeds").querySelectorAll(".speed").forEach((b) => b.setAttribute("aria-pressed", String(parseFloat(b.dataset.rate) === r)));
+}
+$("speeds").onclick = (e) => { const b = e.target.closest("[data-rate]"); if (b) setRate(parseFloat(b.dataset.rate)); };
+$("sillyVoice").onchange = () => { const p = $("player"); const r = p.playbackRate; applyPitch(); p.playbackRate = r; };
+
+$("delBtn").onclick = async () => {
+  if (!current || !confirm("Delete this video?")) return;
+  await db.del(current.id); closePlayer(); await refreshCount(); openGallery();
+};
+
+// ---------- Toast ----------
+let toastT = null;
+function toast(msg) {
+  const t = $("toast"); t.textContent = msg; t.classList.add("show");
+  clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove("show"), 2200);
+}
+</script>
+</body>
+</html>
