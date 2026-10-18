@@ -75,12 +75,27 @@
     background: var(--sun); color: var(--grape); border: 0; border-radius: 999px;
     padding: 10px 26px 7px; font-weight: 800; font-size: 1.25rem;
   }
-  .rec-timer {
-    position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
-    background: var(--gum); color: #fff; font-weight: 800; border-radius: 999px;
-    padding: 2px 14px 0; font-size: 1.05rem;
+  .rec-bar {
+    position: absolute; top: 12px; left: 16px; right: 16px; height: 18px;
+    background: rgba(43,22,64,.7); border: 3px solid var(--cream); border-radius: 999px; overflow: hidden;
   }
-  .rec-timer[hidden] { display: none; }
+  .rec-bar[hidden] { display: none; }
+  .rec-fill { height: 100%; width: 0; background: var(--sun); border-radius: 999px; }
+  .rec-bar.ending .rec-fill { background: var(--gum); }
+
+  .processing {
+    position: fixed; inset: 0; z-index: 35; background: var(--grape);
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px;
+  }
+  .processing[hidden] { display: none; }
+  .proc-icon { font-size: 5rem; line-height: 1; animation: spin 1.4s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .proc-dots { display: flex; gap: 12px; }
+  .proc-dots span { width: 18px; height: 18px; border-radius: 50%; background: var(--sun); animation: hop .9s ease-in-out infinite; }
+  .proc-dots span:nth-child(2) { animation-delay: .15s; background: var(--gum); }
+  .proc-dots span:nth-child(3) { animation-delay: .3s; background: var(--sky); }
+  @keyframes hop { 50% { transform: translateY(-16px); } }
+  .proc-text { font-size: 1.5rem; font-weight: 800; }
   .hint {
     position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%);
     background: rgba(43,22,64,.75); border-radius: 999px; padding: 2px 12px 0;
@@ -191,7 +206,7 @@
 
   <div class="stage" id="stage">
     <canvas id="out"></canvas>
-    <div class="rec-timer" id="recTimer" hidden>0:00</div>
+    <div class="rec-bar" id="recBar" hidden><div class="rec-fill" id="recFill"></div></div>
     <div class="hint" id="hint" hidden>Drag to move your face</div>
     <div class="stage-msg" id="startMsg">
       <div style="font-size:3rem">🎃</div>
@@ -318,6 +333,12 @@
       <div class="dtext" id="dText">Delete this video?</div>
       <div class="dbtns" id="dBtns"></div>
     </div>
+  </div>
+
+  <div class="processing" id="processing" hidden aria-live="polite">
+    <div class="proc-icon">🎬</div>
+    <div class="proc-dots"><span></span><span></span><span></span></div>
+    <div class="proc-text">Making your video…</div>
   </div>
 
   <div class="toast" id="toast"></div>
@@ -1474,6 +1495,7 @@ function renderFace(W, H, now) {
 // ---------- Main loop ----------
 function loop() {
   requestAnimationFrame(loop);
+  if (state.processing) return; // camera paused while the video is being made
   const W = cam.videoWidth, H = cam.videoHeight;
   if (!W || !H) return;
   if (out.width !== W || out.height !== H) {
@@ -1662,7 +1684,7 @@ function pickMime() {
   const types = ["video/mp4;codecs=avc1", "video/mp4", "video/webm;codecs=vp9,opus", "video/webm;codecs=vp8,opus", "video/webm"];
   return types.find((t) => window.MediaRecorder && MediaRecorder.isTypeSupported(t)) || "";
 }
-const MAX_SECONDS = 60;
+const MAX_SECONDS = 15;
 let timerInt = null;
 
 $("recBtn").onclick = () => (state.recorder ? stopRec() : startRec());
@@ -1681,29 +1703,49 @@ function startRec() {
   rec.start(250);
   state.recorder = rec; state.recStart = performance.now();
   $("recBtn").classList.add("on"); $("recBtn").setAttribute("aria-label", "Stop recording");
-  $("recTimer").hidden = false; $("recTimer").textContent = "0:00";
+  // time bar fills up over 15 seconds, turns pink for the last 3
+  const bar = $("recBar"), fill = $("recFill");
+  bar.classList.remove("ending"); bar.hidden = false;
+  fill.style.transition = "none"; fill.style.width = "0%";
+  void fill.offsetWidth;
+  fill.style.transition = `width ${MAX_SECONDS}s linear`; fill.style.width = "100%";
   timerInt = setInterval(() => {
-    const s = Math.floor((performance.now() - state.recStart) / 1000);
-    $("recTimer").textContent = `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
-    if (s >= MAX_SECONDS) stopRec();
-  }, 250);
+    const secs = (performance.now() - state.recStart) / 1000;
+    if (secs >= MAX_SECONDS - 3) bar.classList.add("ending");
+    if (secs >= MAX_SECONDS) stopRec();
+  }, 100);
 }
 function stopRec() {
   if (!state.recorder) return;
   state.recDuration = (performance.now() - state.recStart) / 1000;
   state.thumb = out.toDataURL("image/jpeg", 0.6);
+  state.processing = true; state.procStart = performance.now();
+  $("processing").hidden = false;
   state.recorder.stop(); state.recorder = null;
   clearInterval(timerInt);
   $("recBtn").classList.remove("on"); $("recBtn").setAttribute("aria-label", "Start recording");
-  $("recTimer").hidden = true;
+  $("recBar").hidden = true;
+}
+function endProcessing() {
+  state.processing = false;
+  $("processing").hidden = true;
 }
 async function saveClip() {
-  const type = state.chunks[0]?.type || pickMime() || "video/webm";
-  const blob = new Blob(state.chunks, { type });
-  const frames = (await Promise.all(state.framePromises || [])).filter(Boolean);
-  const fps = clamp(frames.length / Math.max(0.5, state.recDuration || 1), 1, 30);
-  const clip = { id: Date.now(), blob, thumb: state.thumb, dur: state.recDuration, type, frames, fps };
-  openPlayer(clip, true); // play it right away; asks to keep it when he leaves
+  try {
+    const type = state.chunks[0]?.type || pickMime() || "video/webm";
+    const blob = new Blob(state.chunks, { type });
+    const frames = (await Promise.all(state.framePromises || [])).filter(Boolean);
+    const fps = clamp(frames.length / Math.max(0.5, state.recDuration || 1), 1, 30);
+    const clip = { id: Date.now(), blob, thumb: state.thumb, dur: state.recDuration, type, frames, fps };
+    // keep the "making your video" screen up long enough to notice
+    const wait = 800 - (performance.now() - state.procStart);
+    if (wait > 0) await new Promise((r) => setTimeout(r, wait));
+    openPlayer(clip, true); // play it right away; asks to keep it when he leaves
+    player.addEventListener("playing", endProcessing, { once: true });
+    setTimeout(endProcessing, 2500); // never leave the screen stuck
+  } catch (e) {
+    console.error(e); endProcessing(); toast("Something went wrong, try again");
+  }
 }
 
 // ---------- Storage (stays inside this app) ----------
