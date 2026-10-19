@@ -151,6 +151,8 @@
   .cats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
   .cat { border: 0; border-radius: 14px; height: 60px; display: flex; flex-direction: column; align-items: center; justify-content: center; font-weight: 800; font-size: .85rem; line-height: 1.1; color: #fff; position: relative; padding: 0; }
   .cat .em { font-size: 1.45rem; line-height: 1.1; }
+  #extras { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
+  #extras .cat { font-size: .74rem; }
   .cat[aria-selected="true"] { outline: 4px solid #fff; outline-offset: -4px; }
   .cat .dot { position: absolute; top: 5px; right: 6px; width: 11px; height: 11px; border-radius: 50%; background: var(--sun); border: 2px solid #fff; display: none; }
   .cat.active .dot { display: block; }
@@ -361,7 +363,7 @@
   <video id="cam" playsinline webkit-playsinline muted autoplay style="display:none"></video>
 
 <script type="module">
-import { FaceLandmarker, FilesetResolver, ImageSegmenter } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/vision_bundle.mjs";
+import { FaceLandmarker, FilesetResolver, ImageSegmenter, HandLandmarker } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/vision_bundle.mjs";
 
 const $ = (id) => document.getElementById(id);
 const cam = $("cam"), out = $("out"), octx = out.getContext("2d");
@@ -371,7 +373,7 @@ const feat = document.createElement("canvas"), fctx = feat.getContext("2d");
 
 const state = {
   look: "mask", cat: "mask", drawer: false, bg: "pumpkin", photo: null,
-  hat: "tophat", glasses: "sun", mask: "monster", mouthFx: "none", env: "none", place: "none", maskReady: false, fpsAvg: 0, toon: "rock", overlay: "none", timer: false, counting: false, starting: false, toonHead: "kid", emit: null, dt: 1, lastLoop: 0,
+  hat: "tophat", glasses: "sun", mask: "monster", mouthFx: "none", env: "none", place: "none", maskReady: false, fpsAvg: 0, handFx: "none", handTrigger: "all", toon: "rock", overlay: "none", timer: false, counting: false, starting: false, toonHead: "kid", emit: null, dt: 1, lastLoop: 0,
   size: 1, offX: 0, offY: 0,
   landmarker: null, stream: null, lastVideoTime: -1,
   face: null, lastSeen: 0,
@@ -1281,7 +1283,7 @@ function spawnFx(e, dt) {
       parts.push({ k: "bub", x: ox, y: oy, vx: (dx + px * sp) * v, vy: (dy + py * sp) * v, life: 0, max: 140 + R() * 80, s: (0.07 + R() * 0.14) * u, ph: R() * 6, u });
     }
   }
-  while (parts.length > 500) parts.shift();
+  while (parts.length > 700) parts.shift();
 }
 
 const tongue = {};
@@ -1308,6 +1310,7 @@ function runFx(now) {
     if (p.k === "fire") { p.vx *= 0.985; p.vy = p.vy * 0.985 - 0.004 * p.u * dt; }
     else if (p.k === "rain") { p.vy += 0.0025 * p.u * dt; }
     else if (p.k === "spark") { p.vx *= 0.98; p.vy = p.vy * 0.98 + p.g * dt; }
+    else if (p.k === "conf") { p.vx *= 0.98; p.vy = p.vy * 0.98 + 0.0015 * p.u * dt; p.a += p.va * dt; p.x += Math.sin(p.life * 0.2 + p.a) * 0.003 * p.u * dt; }
     else if (p.k === "bub") { p.vx *= 0.97; p.vy = p.vy * 0.97 - 0.0012 * p.u * dt; p.x += Math.sin(p.life * 0.08 + p.ph) * 0.004 * p.u * dt; }
     p.x += p.vx * dt; p.y += p.vy * dt;
   }
@@ -1328,6 +1331,12 @@ function runFx(now) {
       RAINBOW.forEach((col, j) => { ctx.fillStyle = col; ctx.fillRect(-3 * bw + j * bw, -seg / 2, bw + 0.5, seg); });
       ctx.restore();
       ctx.globalAlpha = 1;
+    } else if (p.k === "conf") {
+      ctx.globalCompositeOperation = "source-over";
+      ctx.globalAlpha = t > 0.8 ? (1 - t) / 0.2 : 1;
+      ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.a); ctx.scale(1, Math.abs(Math.cos(p.life * 0.25 + p.a)) + 0.2);
+      ctx.fillStyle = p.c; ctx.fillRect(-p.s / 2, -p.s / 4, p.s, p.s / 2);
+      ctx.restore(); ctx.globalAlpha = 1;
     } else if (p.k === "spark") {
       ctx.globalCompositeOperation = "lighter";
       ctx.globalAlpha = (t > 0.7 ? (1 - t) / 0.3 : 1) * (0.6 + 0.4 * Math.sin(p.life * 0.4 + p.ph));
@@ -1473,6 +1482,110 @@ function renderEnv(now, W, H) {
     ctx.globalAlpha = 1;
   }
   ctx.restore();
+}
+
+// ---------- Hand magic ----------
+let handLm = null, handLoading = false, handMs = 0, handSkip = false, handFrame = 0, lastHands = [];
+const handState = {};
+async function loadHands() {
+  if (handLm || handLoading) return;
+  handLoading = true;
+  try {
+    const files = await FilesetResolver.forVisionTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/wasm");
+    const opts = (d) => ({
+      baseOptions: { modelAssetPath: "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task", delegate: d },
+      runningMode: "VIDEO", numHands: 2,
+    });
+    try { handLm = await HandLandmarker.createFromOptions(files, opts("GPU")); }
+    catch (e) { console.warn("hands GPU failed, using CPU", e); handLm = await HandLandmarker.createFromOptions(files, opts("CPU")); }
+  } catch (e) { console.error(e); toast("Hand magic couldn’t load. Check the internet and try again."); }
+  handLoading = false;
+}
+function spawnConf(x, y, u, vx, vy) {
+  parts.push({ k: "conf", x, y, vx, vy, life: 0, max: 80 + Math.random() * 50, s: u * (0.12 + Math.random() * 0.1), c: PARTY[Math.floor(Math.random() * PARTY.length)], a: Math.random() * 6, va: (Math.random() - 0.5) * 0.3, u });
+}
+function emitHand(fx, p, u, dt, rate, dir) {
+  const R = Math.random;
+  if (R() > rate * 0.7 * dt) return;
+  const j = () => (R() - 0.5) * u * 0.3;
+  let vx, vy;
+  if (dir) { const v = (0.05 + R() * 0.05) * u; vx = dir.x * v + (R() - 0.5) * 0.02 * u; vy = dir.y * v + (R() - 0.5) * 0.02 * u; }
+  else { vx = (R() - 0.5) * 0.03 * u; vy = -(0.005 + R() * 0.02) * u; }
+  if (fx === "sparkles") spawnSpark(p.x + j(), p.y + j(), u * 0.9, vx, vy, -0.0003 * u, 50 + R() * 40);
+  else if (fx === "confetti") spawnConf(p.x + j(), p.y + j(), u, vx, vy);
+  else parts.push({ k: "bub", x: p.x + j(), y: p.y + j(), vx, vy, life: 0, max: 110 + R() * 60, s: (0.08 + R() * 0.14) * u, ph: R() * 6, u });
+}
+function burstHand(fx, p, u, power) {
+  const R = Math.random, n = Math.round((fx === "bubbles" ? 14 : 30) + (fx === "bubbles" ? 16 : 45) * power);
+  for (let i = 0; i < n; i++) {
+    const a = R() * Math.PI * 2, v = (0.04 + R() * 0.1) * u * (0.6 + power);
+    const vx = Math.cos(a) * v, vy = Math.sin(a) * v - 0.02 * u;
+    if (fx === "sparkles") spawnSpark(p.x, p.y, u * 1.1, vx, vy, 0.0004 * u, 50 + R() * 40);
+    else if (fx === "confetti") spawnConf(p.x, p.y, u * 1.1, vx, vy);
+    else parts.push({ k: "bub", x: p.x, y: p.y, vx: vx * 0.6, vy: vy * 0.6, life: 0, max: 120 + R() * 60, s: (0.1 + R() * 0.2) * u, ph: R() * 6, u });
+  }
+  while (parts.length > 700) parts.shift();
+}
+function drawCharge(p, u, charge, now, fx) {
+  const t = now / 1000, r = u * (0.5 + charge * 0.9) * (1 + 0.08 * Math.sin(t * 12));
+  const col = fx === "bubbles" ? "150,230,255" : fx === "confetti" ? `${150 + Math.floor(100 * Math.sin(t * 3))},120,255` : "255,220,120";
+  octx.save(); octx.globalCompositeOperation = "lighter";
+  const g = octx.createRadialGradient(p.x, p.y, 0, p.x, p.y, r);
+  g.addColorStop(0, `rgba(${col},${0.25 + charge * 0.4})`); g.addColorStop(1, `rgba(${col},0)`);
+  octx.fillStyle = g; octx.fillRect(p.x - r, p.y - r, 2 * r, 2 * r);
+  if (charge > 0.3) {
+    octx.fillStyle = `rgba(${col},.9)`;
+    for (let i = 0; i < 5; i++) { const a = t * 5 + i * 1.2566; octx.beginPath(); octx.arc(p.x + Math.cos(a) * r * 0.7, p.y + Math.sin(a) * r * 0.7, u * 0.04 * charge, 0, Math.PI * 2); octx.fill(); }
+  }
+  octx.restore();
+}
+function handMagic(h, now) {
+  const P = h.pts, d = (a, b) => Math.hypot(P[a].x - P[b].x, P[a].y - P[b].y);
+  const ext = (tip, pip) => d(0, tip) > d(0, pip) * 1.12;
+  const fingers = [ext(8, 6), ext(12, 10), ext(16, 14), ext(20, 18)];
+  const n = fingers.filter(Boolean).length;
+  const u = Math.max(10, d(0, 9));
+  const palm = { x: (P[0].x + P[9].x) / 2, y: (P[0].y + P[9].y) / 2 };
+  const st = handState[h.side] || (handState[h.side] = { fistSince: 0, seen: 0 });
+  st.seen = now;
+  const fx = state.handFx, dt = state.dt;
+  if (state.handTrigger === "all") {
+    emitHand(fx, palm, u, dt, 0.9, null);
+    for (const tip of [4, 8, 12, 16, 20]) emitHand(fx, P[tip], u, dt, 0.25, null);
+  } else if (state.handTrigger === "point") {
+    if (fingers[0] && !fingers[1] && !fingers[2] && !fingers[3]) {
+      const dx = P[8].x - P[6].x, dy = P[8].y - P[6].y, dl = Math.hypot(dx, dy) || 1;
+      for (let i = 0; i < 3; i++) emitHand(fx, P[8], u, dt, 1, { x: dx / dl, y: dy / dl });
+    }
+  } else if (state.handTrigger === "fist") {
+    if (n === 0) {
+      if (!st.fistSince) st.fistSince = now;
+      drawCharge(palm, u, clamp((now - st.fistSince) / 1000, 0, 1), now, fx);
+    } else if (n >= 3) {
+      if (st.fistSince && now - st.fistSince > 250) burstHand(fx, palm, u, clamp((now - st.fistSince) / 1000, 0.3, 1));
+      st.fistSince = 0;
+    }
+  }
+}
+function runHands(now, W, H) {
+  if (!handLm) return;
+  handFrame++;
+  if (!(handSkip && handFrame % 2)) {
+    const t0 = performance.now();
+    let res;
+    try { res = handLm.detectForVideo(cam, now); } catch (e) { console.warn(e); return; }
+    lastHands = [];
+    const L = (res && res.landmarks) || [], hd = (res && (res.handednesses || res.handedness)) || [];
+    for (let i = 0; i < L.length; i++) {
+      const pts = L[i].map((q) => ({ x: (1 - q.x) * W, y: q.y * H }));
+      const side = (hd[i] && hd[i][0] && hd[i][0].categoryName) || "h" + i;
+      lastHands.push({ pts, side });
+    }
+    handMs = handMs * 0.9 + (performance.now() - t0) * 0.1;
+    handSkip = handMs > 22;
+  }
+  for (const h of lastHands) handMagic(h, now);
+  for (const k in handState) if (now - handState[k].seen > 800) handState[k].fistSince = 0;
 }
 
 // ---------- Places: cut him out and put a moving scene behind ----------
@@ -2653,9 +2766,11 @@ function loop() {
   }
   // 2. extras: weather, mouth magic, colors
   if (state.env !== "none") renderEnv(now, W, H);
+  if (state.handFx !== "none") runHands(now, W, H);
   runFx(now);
   const waitMsg = (!state.landmarker && needFace) ? "Getting the face finder ready…"
-    : (state.place !== "none" && !segmenter && look !== "face" && look !== "toon") ? "Getting the place ready…" : "";
+    : (state.place !== "none" && !segmenter && look !== "face" && look !== "toon") ? "Getting the place ready…"
+    : (state.handFx !== "none" && !handLm) ? "Getting hand magic ready…" : "";
   if (waitMsg) {
     octx.fillStyle = "rgba(43,22,64,.7)";
     octx.fillRect(0, H / 2 - 40, W, 80);
@@ -2668,7 +2783,8 @@ function loop() {
   state.fpsAvg = state.fpsAvg ? state.fpsAvg * 0.95 + (60 / state.dt) * 0.05 : 60 / state.dt;
   if (!$("fps").hidden && Math.floor(now / 500) !== state.fpsTick) {
     state.fpsTick = Math.floor(now / 500);
-    $("fps").textContent = `${Math.round(state.fpsAvg)} fps` + (state.place !== "none" && segmenter ? ` · cutout ${Math.round(segMs)}ms${segSkip ? " (half)" : ""}` : "");
+    $("fps").textContent = `${Math.round(state.fpsAvg)} fps` + (state.place !== "none" && segmenter ? ` · cutout ${Math.round(segMs)}ms${segSkip ? " (half)" : ""}` : "")
+      + (state.handFx !== "none" && handLm ? ` · hands ${Math.round(handMs)}ms${handSkip ? " (half)" : ""}` : "");
   }
 }
 
@@ -2756,8 +2872,13 @@ const CATS = {
 };
 CATS.places = { label: "Places", em: "🏝️", kind: "extra", color: "#0F6E56", panel: "#5DCAA5", tile: "#E1F5EE", ink: "#04342C",
   sections: [{ key: "place", items: [["none", "🚫", "Off"], ["jungle", "🌴", "Jungle"], ["reef", "🐟", "Coral reef"], ["forest", "🌲", "Forest"]] }] };
-const LOOKS = ["mask", "acc", "face", "toon"], EXTRAS = ["places", "mouth", "weather", "colors"];
-const EXTRA_KEY = { places: "place", mouth: "mouthFx", weather: "env", colors: "overlay" };
+CATS.hands = { label: "Hands", em: "🙌", kind: "extra", color: "#7A2E8E", panel: "#D7A6E3", tile: "#F7ECFA", ink: "#3A0F47",
+  sections: [
+    { key: "handTrigger", title: "✋ How", items: [["all", "🙌", "Any hand"], ["fist", "✊", "Fist pop"], ["point", "👉", "Point"]] },
+    { key: "handFx", title: "✨ Magic", items: [["none", "🚫", "Off"], ["sparkles", "✨", "Sparkles"], ["confetti", "🎉", "Confetti"], ["bubbles", "🫧", "Bubbles"]] },
+  ] };
+const LOOKS = ["mask", "acc", "face", "toon"], EXTRAS = ["places", "mouth", "weather", "colors", "hands"];
+const EXTRA_KEY = { places: "place", mouth: "mouthFx", weather: "env", colors: "overlay", hands: "handFx" };
 
 function findItem(cat, key, val) {
   for (const sec of CATS[cat].sections) if (sec.key === key) { const it = sec.items.find((i) => i[0] === val); if (it) return it; }
@@ -2840,6 +2961,13 @@ function pick(cat, key, val) {
     if (state.look === "face" || state.look === "toon") { state.look = "plain"; toast("Places use your real camera"); }
   }
   if ((cat === "face" || cat === "toon") && state.place !== "none") state.place = "none";
+  if (key === "handFx" || key === "handTrigger") {
+    if (key === "handTrigger" && state.handFx === "none") state.handFx = "sparkles";
+    if (state.handFx !== "none") {
+      loadHands();
+      toast(state.handTrigger === "fist" ? "Make a fist… then open it!" : state.handTrigger === "point" ? "Point your finger!" : "Show your hands!");
+    }
+  }
   if (key === "mouthFx" && val !== "none") toast("Open your mouth wide!");
   refreshUI();
 }
