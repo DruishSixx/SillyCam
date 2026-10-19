@@ -1501,6 +1501,47 @@ async function loadHands() {
   } catch (e) { console.error(e); toast("Hand magic couldn’t load. Check the internet and try again."); }
   handLoading = false;
 }
+// Cut his real hands out of the camera and draw them back on top of hats, glasses and masks.
+// The mask is drawn at quarter size, so scaling it back up softens the edges for free.
+let handMaskC = null, hmCtx = null, handLayerC = null, hlCtx = null;
+const HAND_CHAINS = [[0, 1, 2, 3, 4], [0, 5, 6, 7, 8], [5, 9, 10, 11, 12], [9, 13, 14, 15, 16], [13, 17, 18, 19, 20], [0, 17]];
+function drawHandsOnTop(W, H) {
+  if (!lastHands.length) return;
+  const sc = 0.25, mw = Math.max(8, Math.round(W * sc)), mh = Math.max(8, Math.round(H * sc));
+  if (!handMaskC) { handMaskC = document.createElement("canvas"); hmCtx = handMaskC.getContext("2d"); handLayerC = document.createElement("canvas"); hlCtx = handLayerC.getContext("2d"); }
+  if (handMaskC.width !== mw || handMaskC.height !== mh) { handMaskC.width = mw; handMaskC.height = mh; }
+  if (handLayerC.width !== W || handLayerC.height !== H) { handLayerC.width = W; handLayerC.height = H; }
+  hmCtx.clearRect(0, 0, mw, mh);
+  hmCtx.fillStyle = hmCtx.strokeStyle = "#000"; hmCtx.lineCap = "round"; hmCtx.lineJoin = "round";
+  for (const h of lastHands) {
+    const P = h.pts.map((q) => ({ x: q.x * sc, y: q.y * sc }));
+    const u = Math.hypot(P[0].x - P[9].x, P[0].y - P[9].y);
+    if (u < 2) continue;
+    hmCtx.beginPath();
+    [0, 1, 2, 5, 9, 13, 17].forEach((i, k) => (k ? hmCtx.lineTo(P[i].x, P[i].y) : hmCtx.moveTo(P[i].x, P[i].y)));
+    hmCtx.closePath(); hmCtx.fill();
+    hmCtx.lineWidth = u * 0.34;
+    for (const ch of HAND_CHAINS) {
+      hmCtx.beginPath(); hmCtx.moveTo(P[ch[0]].x, P[ch[0]].y);
+      for (let k = 1; k < ch.length; k++) hmCtx.lineTo(P[ch[k]].x, P[ch[k]].y);
+      const a = P[ch[ch.length - 2]], b = P[ch[ch.length - 1]];
+      if (ch.length > 2) hmCtx.lineTo(b.x + (b.x - a.x) * 0.3, b.y + (b.y - a.y) * 0.3);
+      hmCtx.stroke();
+    }
+    hmCtx.lineWidth = u * 0.6;
+    hmCtx.beginPath(); hmCtx.moveTo(P[0].x, P[0].y);
+    hmCtx.lineTo(P[0].x + (P[0].x - P[9].x) * 0.5, P[0].y + (P[0].y - P[9].y) * 0.5); hmCtx.stroke();
+  }
+  hlCtx.globalCompositeOperation = "source-over";
+  hlCtx.clearRect(0, 0, W, H);
+  hlCtx.drawImage(src, 0, 0);
+  hlCtx.globalCompositeOperation = "destination-in";
+  hlCtx.imageSmoothingEnabled = true;
+  hlCtx.drawImage(handMaskC, 0, 0, W, H);
+  hlCtx.globalCompositeOperation = "source-over";
+  octx.drawImage(handLayerC, 0, 0);
+}
+
 function spawnConf(x, y, u, vx, vy) {
   parts.push({ k: "conf", x, y, vx, vy, life: 0, max: 80 + Math.random() * 50, s: u * (0.12 + Math.random() * 0.1), c: PARTY[Math.floor(Math.random() * PARTY.length)], a: Math.random() * 6, va: (Math.random() - 0.5) * 0.3, u });
 }
@@ -1584,6 +1625,7 @@ function runHands(now, W, H) {
     handMs = handMs * 0.9 + (performance.now() - t0) * 0.1;
     handSkip = handMs > 22;
   }
+  if (state.look === "mask" || state.look === "acc") drawHandsOnTop(W, H);
   for (const h of lastHands) handMagic(h, now);
   for (const k in handState) if (now - handState[k].seen > 800) handState[k].fistSince = 0;
 }
@@ -2765,8 +2807,8 @@ function loop() {
     }
   }
   // 2. extras: weather, mouth magic, colors
-  if (state.env !== "none") renderEnv(now, W, H);
   if (state.handFx !== "none") runHands(now, W, H);
+  if (state.env !== "none") renderEnv(now, W, H);
   runFx(now);
   const waitMsg = (!state.landmarker && needFace) ? "Getting the face finder ready…"
     : (state.place !== "none" && !segmenter && look !== "face" && look !== "toon") ? "Getting the place ready…"
