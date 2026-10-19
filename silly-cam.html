@@ -97,7 +97,7 @@
   @keyframes hop { 50% { transform: translateY(-16px); } }
   .proc-text { font-size: 1.5rem; font-weight: 800; }
   .hint {
-    position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%);
+    position: absolute; top: 42px; left: 50%; transform: translateX(-50%);
     background: rgba(43,22,64,.75); border-radius: 999px; padding: 2px 12px 0;
     font-size: .9rem; color: var(--cream); white-space: nowrap; pointer-events: none;
   }
@@ -119,6 +119,50 @@
   .size-row { display: flex; align-items: center; gap: 10px; font-weight: 700; color: var(--muted); }
   .size-row[hidden] { display: none; }
   input[type=range] { flex: 1; accent-color: var(--sun); }
+
+  /* ---- bottom bar ---- */
+  .bar { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; padding: 8px 12px 10px; position: relative; z-index: 16; background: var(--grape); }
+  .handle-btn {
+    justify-self: start; margin-left: 22px; width: 58px; height: 58px; border-radius: 18px;
+    border: 3px solid rgba(255,255,255,.85); font-size: 1.8rem; line-height: 1; color: #fff;
+    display: flex; align-items: center; justify-content: center; position: relative; padding: 0;
+  }
+  .handle-btn .up { position: absolute; top: -20px; left: 50%; transform: translateX(-50%); font-size: .9rem; color: var(--cream); animation: bob 1.1s ease-in-out infinite; }
+  .handle-btn.open .up { display: none; }
+  @keyframes bob { 50% { transform: translate(-50%, -5px); } }
+  .pills { position: absolute; left: 10px; right: 10px; bottom: 10px; display: flex; gap: 6px; flex-wrap: wrap; pointer-events: none; }
+  .pill { pointer-events: auto; border: 2px solid rgba(255,255,255,.85); background: rgba(43,22,64,.85); color: var(--cream); border-radius: 999px; padding: 3px 10px 1px; font-weight: 700; font-size: .9rem; display: flex; align-items: center; gap: 4px; }
+  .pill .x { font-size: .75rem; opacity: .85; }
+
+  /* ---- drawer ---- */
+  .drawer {
+    position: fixed; left: 8px; right: 8px; z-index: 15;
+    bottom: calc(92px + env(safe-area-inset-bottom, 0px));
+    max-height: 54vh; display: flex; flex-direction: column;
+    background: #1E0F2E; border-radius: 22px; padding: 6px 8px 8px;
+    box-shadow: 0 -8px 30px rgba(0,0,0,.45);
+    transform: translateY(calc(100% + 140px)); transition: transform .28s cubic-bezier(.2,.8,.2,1);
+  }
+  .drawer.open { transform: none; }
+  .grabzone { padding: 4px 0 8px; touch-action: none; cursor: grab; flex: none; }
+  .grab { width: 56px; height: 6px; border-radius: 3px; background: #7A56A8; margin: 0 auto; }
+  .catbox { background: #120820; border-radius: 16px; padding: 8px; flex: none; }
+  .cat-lbl { font-size: .8rem; color: var(--muted); font-weight: 700; margin: 0 0 4px 4px; }
+  .cats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+  .cat { border: 0; border-radius: 14px; height: 60px; display: flex; flex-direction: column; align-items: center; justify-content: center; font-weight: 800; font-size: .85rem; line-height: 1.1; color: #fff; position: relative; padding: 0; }
+  .cat .em { font-size: 1.45rem; line-height: 1.1; }
+  .cat[aria-selected="true"] { outline: 4px solid #fff; outline-offset: -4px; }
+  .cat .dot { position: absolute; top: 5px; right: 6px; width: 11px; height: 11px; border-radius: 50%; background: var(--sun); border: 2px solid #fff; display: none; }
+  .cat.active .dot { display: block; }
+  .divider { height: 2px; background: #3D2159; margin: 8px 2px; border-radius: 1px; }
+  .panel { margin-top: 8px; border-radius: 16px; padding: 10px; overflow-y: auto; flex: 1; min-height: 0; -webkit-overflow-scrolling: touch; }
+  .sec-title { font-weight: 800; font-size: .95rem; margin: 2px 4px 6px; }
+  .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(82px, 1fr)); gap: 8px; margin-bottom: 10px; }
+  .tile { border: 0; border-radius: 14px; height: 78px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; font-weight: 700; font-size: .8rem; line-height: 1.05; position: relative; padding: 4px; text-align: center; }
+  .tile .em { font-size: 1.9rem; line-height: 1; }
+  .tile[aria-pressed="true"] { outline: 4px solid #fff; outline-offset: -4px; background: #fff !important; }
+  .tile[aria-pressed="true"]::after { content: "✓"; position: absolute; top: -6px; right: -6px; width: 22px; height: 22px; border-radius: 50%; background: var(--ink); color: #fff; display: flex; align-items: center; justify-content: center; font-size: .85rem; }
+  .panel .size-row { display: flex; align-items: center; gap: 10px; font-weight: 800; margin: 0 4px 6px; }
 
   .rec-row { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; padding-top: 2px; }
   .timer-btn {
@@ -232,6 +276,7 @@
     <div class="countdown" id="countdown" hidden><span id="cdNum">5</span></div>
     <div class="rec-bar" id="recBar" hidden><div class="rec-fill" id="recFill"></div></div>
     <div class="hint" id="hint" hidden>Drag to move your face</div>
+    <div class="pills" id="pills"></div>
     <div class="stage-msg" id="startMsg">
       <div style="font-size:3rem">🎃</div>
       <div>Make silly faces and silly videos.<br>Everything stays on this phone.</div>
@@ -239,100 +284,22 @@
     </div>
   </div>
 
-  <div class="controls">
-    <div class="row" id="modeRow" role="group" aria-label="Effect">
-      <button class="chip" data-mode="face" aria-pressed="true"><span class="em">👀</span>Eyes &amp; mouth</button>
-      <button class="chip" data-mode="acc" aria-pressed="false"><span class="em">🎩</span>Hats &amp; glasses</button>
-      <button class="chip" data-mode="mask" aria-pressed="false"><span class="em">👹</span>Masks</button>
-      <button class="chip" data-mode="env" aria-pressed="false"><span class="em">🪩</span>Environments</button>
-      <button class="chip" data-mode="toon" aria-pressed="false"><span class="em">🎸</span>Cartoons</button>
-      <button class="chip" data-mode="overlay" aria-pressed="false"><span class="em">🎞️</span>Overlays</button>
-      <button class="chip" data-mode="plain" aria-pressed="false"><span class="em">🙂</span>Normal</button>
+  <div class="bar" id="bar">
+    <button class="timer-btn" id="timerBtn" aria-pressed="false" aria-label="5 second timer">⏱️<b>5</b></button>
+    <button class="rec" id="recBtn" aria-label="Start recording"></button>
+    <button class="handle-btn" id="handleBtn" aria-label="Open filters"><span class="up">▲</span><span id="handleEm">🎨</span></button>
+  </div>
+
+  <div class="drawer" id="drawer" aria-hidden="true">
+    <div class="grabzone" id="grabzone"><div class="grab"></div></div>
+    <div class="catbox">
+      <p class="cat-lbl">Looks</p>
+      <div class="cats" id="looks"></div>
+      <div class="divider"></div>
+      <p class="cat-lbl">Extras</p>
+      <div class="cats" id="extras"></div>
     </div>
-    <div class="row sub" id="bgRow" role="group" aria-label="Picture">
-      <button class="chip" data-bg="pumpkin" aria-pressed="true"><span class="em">🎃</span>Pumpkin</button>
-      <button class="chip" data-bg="potato" aria-pressed="false"><span class="em">🥔</span>Potato</button>
-      <button class="chip" data-bg="moon" aria-pressed="false"><span class="em">🌕</span>Moon</button>
-      <button class="chip" data-bg="orange" aria-pressed="false"><span class="em">🍊</span>Orange</button>
-      <button class="chip" data-bg="photo" aria-pressed="false"><span class="em">🖼️</span>My picture</button>
-      <button class="chip" data-bg="xmas" aria-pressed="false"><span class="em">🎄</span>Christmas tree</button>
-      <button class="chip" data-bg="tree" aria-pressed="false"><span class="em">🌳</span>Tree</button>
-    </div>
-    <div class="row sub" id="hatRow" role="group" aria-label="Hat" style="display:none">
-      <button class="chip" data-hat="none" aria-pressed="false">No hat</button>
-      <button class="chip" data-hat="cap" aria-pressed="false"><span class="em">🧢</span>Ball cap</button>
-      <button class="chip" data-hat="bowler" aria-pressed="false"><span class="em">🎳</span>Bowler</button>
-      <button class="chip" data-hat="tophat" aria-pressed="true"><span class="em">🎩</span>Top hat</button>
-      <button class="chip" data-hat="bunny" aria-pressed="false"><span class="em">🐰</span>Bunny ears</button>
-      <button class="chip" data-hat="viking" aria-pressed="false"><span class="em">🛡️</span>Viking helmet</button>
-      <button class="chip" data-hat="wizard" aria-pressed="false"><span class="em">🧙</span>Wizard hat</button>
-      <button class="chip" data-hat="hardhat" aria-pressed="false"><span class="em">👷</span>Hard hat</button>
-      <button class="chip" data-hat="unicorn" aria-pressed="false"><span class="em">🦄</span>Unicorn horn</button>
-    </div>
-    <div class="row sub" id="glassRow" role="group" aria-label="Glasses" style="display:none">
-      <button class="chip" data-glasses="none" aria-pressed="false">No glasses</button>
-      <button class="chip" data-glasses="sun" aria-pressed="true"><span class="em">😎</span>Sunglasses</button>
-      <button class="chip" data-glasses="eye" aria-pressed="false"><span class="em">👓</span>Eyeglasses</button>
-      <button class="chip" data-glasses="silly" aria-pressed="false"><span class="em">🥸</span>Silly glasses</button>
-      <button class="chip" data-glasses="googly" aria-pressed="false"><span class="em">👀</span>Googly eyes</button>
-      <button class="chip" data-glasses="visor" aria-pressed="false"><span class="em">🛸</span>Sci-fi visor</button>
-      <button class="chip" data-glasses="robber" aria-pressed="false"><span class="em">🦹</span>Robber mask</button>
-    </div>
-    <div class="row sub" id="maskRow" role="group" aria-label="Mask" style="display:none">
-      <button class="chip" data-mask="monster" aria-pressed="true"><span class="em">👹</span>Monster</button>
-      <button class="chip" data-mask="robot" aria-pressed="false"><span class="em">🤖</span>Robot</button>
-      <button class="chip" data-mask="alien" aria-pressed="false"><span class="em">👽</span>Alien</button>
-      <button class="chip" data-mask="dragon" aria-pressed="false"><span class="em">🐉</span>Dragon</button>
-      <button class="chip" data-mask="dog" aria-pressed="false"><span class="em">🐶</span>Dog</button>
-      <button class="chip" data-mask="kabuki" aria-pressed="false"><span class="em">👺</span>Kabuki</button>
-      <button class="chip" data-mask="knight" aria-pressed="false"><span class="em">⚔️</span>Knight</button>
-    </div>
-    <div class="row sub" id="envRow" role="group" aria-label="Environment" style="display:none">
-      <button class="chip" data-env="disco" aria-pressed="true"><span class="em">🪩</span>Disco</button>
-      <button class="chip" data-env="snow" aria-pressed="false"><span class="em">❄️</span>Snow</button>
-      <button class="chip" data-env="confetti" aria-pressed="false"><span class="em">🎉</span>Confetti</button>
-      <button class="chip" data-env="blossom" aria-pressed="false"><span class="em">🌸</span>Blossoms</button>
-      <button class="chip" data-env="fog" aria-pressed="false"><span class="em">🌫️</span>Foggy</button>
-      <button class="chip" data-env="rain" aria-pressed="false"><span class="em">🌧️</span>Rainy</button>
-    </div>
-    <div class="row sub" id="toonRow" role="group" aria-label="Cartoon" style="display:none">
-      <button class="chip" data-toon="rock" aria-pressed="true"><span class="em">🎸</span>Rock star</button>
-      <button class="chip" data-toon="drive" aria-pressed="false"><span class="em">🚗</span>Driver</button>
-      <button class="chip" data-toon="space" aria-pressed="false"><span class="em">🚀</span>Spaceship</button>
-      <button class="chip" data-toon="jail" aria-pressed="false"><span class="em">🔒</span>In jail</button>
-    </div>
-    <div class="row sub" id="headRow" role="group" aria-label="Cartoon head" style="display:none">
-      <button class="chip" data-head="kid" aria-pressed="true"><span class="em">🙂</span>Kid</button>
-      <button class="chip" data-head="monster" aria-pressed="false"><span class="em">👹</span>Monster</button>
-      <button class="chip" data-head="robot" aria-pressed="false"><span class="em">🤖</span>Robot</button>
-      <button class="chip" data-head="alien" aria-pressed="false"><span class="em">👽</span>Alien</button>
-      <button class="chip" data-head="dragon" aria-pressed="false"><span class="em">🐉</span>Dragon</button>
-      <button class="chip" data-head="dog" aria-pressed="false"><span class="em">🐶</span>Dog</button>
-      <button class="chip" data-head="kabuki" aria-pressed="false"><span class="em">👺</span>Kabuki</button>
-    </div>
-    <div class="row sub" id="overlayRow" role="group" aria-label="Overlay" style="display:none">
-      <button class="chip" data-ov="none" aria-pressed="true">No overlay</button>
-      <button class="chip" data-ov="bw" aria-pressed="false"><span class="em">⚫</span>Black &amp; white</button>
-      <button class="chip" data-ov="sepia" aria-pressed="false"><span class="em">📜</span>Sepia</button>
-      <button class="chip" data-ov="grain" aria-pressed="false"><span class="em">🎞️</span>Old film</button>
-      <button class="chip" data-ov="mexico" aria-pressed="false"><span class="em">🌵</span>Mexico</button>
-    </div>
-    <div class="row sub" id="mouthRow" role="group" aria-label="Mouth effect" style="display:none">
-      <button class="chip" data-fx="none" aria-pressed="false">No mouth effect</button>
-      <button class="chip" data-fx="fire" aria-pressed="true"><span class="em">🔥</span>Fire</button>
-      <button class="chip" data-fx="rainbow" aria-pressed="false"><span class="em">🌈</span>Rainbow</button>
-      <button class="chip" data-fx="bubbles" aria-pressed="false"><span class="em">🫧</span>Bubbles</button>
-      <button class="chip" data-fx="tongue" aria-pressed="false"><span class="em">👅</span>Tongue</button>
-      <button class="chip" data-fx="sparkles" aria-pressed="false"><span class="em">✨</span>Sparkles</button>
-    </div>
-    <label class="size-row" id="sizeRow">Face size
-      <input type="range" id="size" min="0.5" max="1.8" step="0.05" value="1">
-    </label>
-    <div class="rec-row">
-      <button class="timer-btn" id="timerBtn" aria-pressed="false" aria-label="5 second timer">⏱️<b>5</b></button>
-      <button class="rec" id="recBtn" aria-label="Start recording"></button>
-      <span></span>
-    </div>
+    <div class="panel" id="panel"></div>
   </div>
   <input type="file" id="photoInput" accept="image/*" hidden>
 
@@ -402,8 +369,8 @@ const bgCanvas = document.createElement("canvas"), bctx = bgCanvas.getContext("2
 const feat = document.createElement("canvas"), fctx = feat.getContext("2d");
 
 const state = {
-  mode: "face", bg: "pumpkin", photo: null,
-  hat: "tophat", glasses: "sun", mask: "monster", mouthFx: "fire", env: "disco", toon: "rock", overlay: "none", timer: false, counting: false, starting: false, toonHead: "kid", emit: null, dt: 1, lastLoop: 0,
+  look: "mask", cat: "mask", drawer: false, bg: "pumpkin", photo: null,
+  hat: "tophat", glasses: "sun", mask: "monster", mouthFx: "none", env: "none", toon: "rock", overlay: "none", timer: false, counting: false, starting: false, toonHead: "kid", emit: null, dt: 1, lastLoop: 0,
   size: 1, offX: 0, offY: 0,
   landmarker: null, stream: null, lastVideoTime: -1,
   face: null, lastSeen: 0,
@@ -989,6 +956,157 @@ const MASKS = {
     ctx.fillStyle = "#3E4651";
     for (const sxx of [-1, 1]) ell(ctx, sxx * 0.56 * w, 0.18 * w, 0.03 * w, 0.03 * w);
   },
+  fish(ctx, L) {
+    const { w, u } = L;
+    const ryTop = 0.72 * w, ryBot = Math.max(0.66 * w, L.chin.y + 0.12 * w), flap = Math.sin(L.t * 6) * 0.35;
+    for (const sx of [-1, 1]) {
+      ctx.save(); ctx.translate(sx * 0.58 * w, 0.2 * w); ctx.rotate(sx * (0.5 + flap));
+      ctx.fillStyle = "#3BA7FF"; ctx.beginPath(); ctx.moveTo(0, -0.08 * w);
+      ctx.quadraticCurveTo(sx * 0.45 * w, -0.2 * w, sx * 0.42 * w, 0.18 * w); ctx.quadraticCurveTo(sx * 0.2 * w, 0.05 * w, 0, 0.1 * w); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = "rgba(255,255,255,.5)"; ctx.lineWidth = 0.012 * w;
+      for (const k of [0.3, 0.6]) { ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(sx * 0.4 * w * k + sx * 0.1 * w, (k - 0.3) * 0.25 * w); ctx.stroke(); }
+      ctx.restore();
+    }
+    ctx.fillStyle = "#9B5CFF"; ctx.beginPath();
+    ctx.moveTo(-0.3 * w, -0.6 * w); ctx.quadraticCurveTo(-0.15 * w, -1.12 * w + Math.sin(L.t * 3) * 0.03 * w, 0.12 * w, -1.05 * w);
+    ctx.quadraticCurveTo(0.2 * w, -0.8 * w, 0.32 * w, -0.6 * w); ctx.closePath(); ctx.fill();
+    const g = ctx.createRadialGradient(-0.2 * w, -0.3 * w, 0.1 * w, 0, 0, 1.0 * w);
+    g.addColorStop(0, "#FFB547"); g.addColorStop(1, "#FF6A00");
+    headPath(ctx, 0.64 * w, 0, ryTop, ryBot);
+    ctx.fillStyle = g; ctx.fill();
+    ctx.save(); ctx.clip();
+    for (const x of [-0.45, 0.45]) {
+      ctx.fillStyle = "#FFFFFF"; ctx.beginPath(); ctx.ellipse(x * w, 0.05 * w, 0.1 * w, 0.9 * w, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = "#1A1210"; ctx.lineWidth = 0.025 * w; ctx.stroke();
+    }
+    ctx.strokeStyle = "rgba(200,80,0,.4)"; ctx.lineWidth = 0.014 * w;
+    for (let r = 0; r < 3; r++) for (let c = -1; c <= 1; c++) { ctx.beginPath(); ctx.arc(c * 0.12 * w + (r % 2) * 0.06 * w, -0.55 * w + r * 0.1 * w, 0.06 * w, 0.15 * Math.PI, 0.85 * Math.PI); ctx.stroke(); }
+    ctx.restore();
+    headPath(ctx, 0.64 * w, 0, ryTop, ryBot); ctx.strokeStyle = "#B34700"; ctx.lineWidth = 0.02 * w; ctx.stroke();
+    [[-1, L.eyeL], [1, L.eyeR]].forEach(([sx, o]) => {
+      const ex = sx * 0.55 * u, ey = -0.05 * w, open = Math.max(0.08, o), er = 0.15 * w;
+      ctx.save(); ctx.beginPath(); ctx.ellipse(ex, ey, er, er * open, 0, 0, Math.PI * 2);
+      ctx.fillStyle = "#FFFFFF"; ctx.fill(); ctx.strokeStyle = "#1A1210"; ctx.lineWidth = 0.02 * w; ctx.stroke(); ctx.clip();
+      ctx.fillStyle = "#1A1210"; ell(ctx, ex, ey + 0.02 * w, er * 0.55, er * 0.55);
+      ctx.fillStyle = "#FFFFFF"; ell(ctx, ex - er * 0.2, ey - er * 0.15, er * 0.18, er * 0.18);
+      ctx.restore();
+    });
+    ctx.fillStyle = "rgba(255,90,140,.35)";
+    for (const sx of [-1, 1]) ell(ctx, sx * 0.3 * w, L.nose.y + 0.05 * w, 0.08 * w, 0.05 * w);
+    const mh = 0.05 * w + L.open * 0.14 * w;
+    ctx.fillStyle = "#3A0A1A"; ell(ctx, L.mouth.x, L.mouth.y, 0.1 * w, mh);
+    ctx.strokeStyle = "#FF5C8A"; ctx.lineWidth = 0.05 * w;
+    ctx.beginPath(); ctx.ellipse(L.mouth.x, L.mouth.y, 0.11 * w, mh + 0.01 * w, 0, 0, Math.PI * 2); ctx.stroke();
+  },
+  shark(ctx, L) {
+    const { w } = L;
+    const hy = 0.12 * w, hry = Math.max(0.82 * w, (L.chin.y + 0.12 * w - (-0.72 * w)) / 2), hcy = (L.chin.y + 0.12 * w + (-0.72 * w)) / 2, hrx = 0.62 * w;
+    const orx = 1.05 * w, oTop = hcy - hry - 0.45 * w, oBot = hcy + hry + 0.3 * w, ocy = (oTop + oBot) / 2, ory = (oBot - oTop) / 2;
+    ctx.fillStyle = "#6B7A8A"; ctx.beginPath();
+    ctx.moveTo(-0.25 * w, oTop + 0.06 * w); ctx.quadraticCurveTo(0.05 * w, oTop - 0.55 * w, 0.32 * w, oTop - 0.6 * w);
+    ctx.quadraticCurveTo(0.22 * w, oTop - 0.2 * w, 0.3 * w, oTop + 0.08 * w); ctx.closePath(); ctx.fill();
+    ctx.save();
+    ctx.beginPath(); ctx.ellipse(0, ocy, orx, ory, 0, 0, Math.PI * 2);
+    ctx.moveTo(hrx, hcy); ctx.ellipse(0, hcy, hrx, hry, 0, 0, Math.PI * 2);
+    ctx.clip("evenodd");
+    const g = ctx.createLinearGradient(0, oTop, 0, oBot);
+    g.addColorStop(0, "#8794A3"); g.addColorStop(0.55, "#6B7A8A"); g.addColorStop(0.56, "#F2F4F7"); g.addColorStop(1, "#DDE2E8");
+    ctx.fillStyle = g; ctx.fillRect(-orx, oTop, 2 * orx, oBot - oTop);
+    ctx.strokeStyle = "#8E1A2A"; ctx.lineWidth = 0.14 * w;
+    ctx.beginPath(); ctx.ellipse(0, hcy, hrx, hry, 0, 0, Math.PI * 2); ctx.stroke();
+    ctx.restore();
+    ctx.strokeStyle = "#3E4651"; ctx.lineWidth = 0.022 * w;
+    ctx.beginPath(); ctx.ellipse(0, ocy, orx, ory, 0, 0, Math.PI * 2); ctx.stroke();
+    ctx.fillStyle = "#FFFFFF";
+    const n = 18;
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * Math.PI * 2, a2 = ((i + 0.5) / n) * Math.PI * 2, a3 = ((i + 1) / n) * Math.PI * 2;
+      const P = (aa, r) => ({ x: Math.cos(aa) * hrx * r, y: hcy + Math.sin(aa) * hry * r });
+      const p1 = P(a, 1.06), p2 = P(a2, 0.9), p3 = P(a3, 1.06);
+      ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.lineTo(p3.x, p3.y); ctx.closePath(); ctx.fill();
+    }
+    ctx.fillStyle = "#111";
+    for (const sx of [-1, 1]) {
+      ell(ctx, sx * 0.86 * w, hcy - hry * 0.55, 0.06 * w, 0.06 * w);
+      ctx.strokeStyle = "rgba(40,48,58,.6)"; ctx.lineWidth = 0.02 * w;
+      for (let k = 0; k < 3; k++) { ctx.beginPath(); ctx.arc(sx * (0.8 - k * 0.06) * w, hcy + 0.05 * w, 0.12 * w, sx > 0 ? 0.6 * Math.PI : -0.4 * Math.PI, sx > 0 ? 1.4 * Math.PI : 0.4 * Math.PI, sx > 0); ctx.stroke(); }
+    }
+  },
+  tiger(ctx, L) {
+    const { w, u } = L;
+    const ryTop = 0.72 * w, ryBot = Math.max(0.64 * w, L.chin.y + 0.14 * w);
+    for (const sx of [-1, 1]) {
+      ctx.fillStyle = "#1A1210"; ell(ctx, sx * 0.48 * w, -0.6 * w, 0.18 * w, 0.18 * w);
+      ctx.fillStyle = "#F28C28"; ell(ctx, sx * 0.48 * w, -0.6 * w, 0.15 * w, 0.15 * w);
+      ctx.fillStyle = "#FFF3E0"; ell(ctx, sx * 0.48 * w, -0.58 * w, 0.08 * w, 0.08 * w);
+    }
+    const g = ctx.createRadialGradient(-0.2 * w, -0.3 * w, 0.1 * w, 0, 0, 1.0 * w);
+    g.addColorStop(0, "#FFA94D"); g.addColorStop(1, "#E06D12");
+    headPath(ctx, 0.64 * w, 0, ryTop, ryBot);
+    ctx.fillStyle = g; ctx.fill();
+    ctx.save(); ctx.clip();
+    ctx.fillStyle = "#FFF3E0";
+    for (const sx of [-1, 1]) { ell(ctx, sx * 0.2 * w, L.nose.y + 0.12 * w, 0.22 * w, 0.17 * w); ell(ctx, sx * 0.55 * u, -0.2 * w, 0.12 * w, 0.06 * w); }
+    ell(ctx, L.mouth.x, L.chin.y, 0.24 * w, 0.18 * w);
+    ctx.fillStyle = "#1A1210";
+    const stripe = (x0, y0, x1, y1, wd) => {
+      const dx = x1 - x0, dy = y1 - y0, d = Math.hypot(dx, dy), nx = -dy / d * wd, ny = dx / d * wd;
+      ctx.beginPath(); ctx.moveTo(x0 + nx, y0 + ny); ctx.quadraticCurveTo((x0 + x1) / 2 + nx * 0.5, (y0 + y1) / 2 + ny * 0.5, x1, y1);
+      ctx.quadraticCurveTo((x0 + x1) / 2 - nx * 0.5, (y0 + y1) / 2 - ny * 0.5, x0 - nx, y0 - ny); ctx.closePath(); ctx.fill();
+    };
+    stripe(0, -0.75 * w, 0, -0.38 * w, 0.04 * w);
+    for (const sx of [-1, 1]) {
+      stripe(sx * 0.14 * w, -0.72 * w, sx * 0.1 * w, -0.45 * w, 0.03 * w);
+      stripe(sx * 0.66 * w, -0.25 * w, sx * 0.38 * w, -0.2 * w, 0.035 * w);
+      stripe(sx * 0.68 * w, 0.0, sx * 0.42 * w, 0.02 * w, 0.035 * w);
+      stripe(sx * 0.66 * w, 0.25 * w, sx * 0.44 * w, 0.22 * w, 0.03 * w);
+    }
+    ctx.restore();
+    headPath(ctx, 0.64 * w, 0, ryTop, ryBot); ctx.strokeStyle = "#8A3E00"; ctx.lineWidth = 0.02 * w; ctx.stroke();
+    [[-1, L.eyeL], [1, L.eyeR]].forEach(([sx, o]) => {
+      const ex = sx * 0.55 * u, ey = -0.04 * w, open = Math.max(0.1, o);
+      ctx.save(); ctx.translate(ex, ey); ctx.rotate(-sx * 0.15);
+      ctx.fillStyle = "#D8F23A"; ell(ctx, 0, 0, 0.1 * w, 0.075 * w * open);
+      ctx.strokeStyle = "#1A1210"; ctx.lineWidth = 0.02 * w; ctx.beginPath(); ctx.ellipse(0, 0, 0.1 * w, 0.075 * w * open, 0, 0, Math.PI * 2); ctx.stroke();
+      if (open > 0.3) { ctx.fillStyle = "#1A1210"; ell(ctx, 0, 0, 0.025 * w, 0.06 * w * open); }
+      ctx.restore();
+    });
+    ctx.fillStyle = "#E8607A"; ctx.beginPath();
+    ctx.moveTo(L.nose.x - 0.08 * w, L.nose.y - 0.03 * w); ctx.lineTo(L.nose.x + 0.08 * w, L.nose.y - 0.03 * w); ctx.lineTo(L.nose.x, L.nose.y + 0.06 * w); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = "#1A1210"; ctx.lineWidth = 0.018 * w; ctx.lineCap = "round";
+    ctx.beginPath(); ctx.moveTo(L.nose.x, L.nose.y + 0.06 * w); ctx.lineTo(L.mouth.x, L.mouth.y - 0.03 * w); ctx.stroke();
+    if (L.open > 0.1) { ctx.fillStyle = "#4A0E1C"; ell(ctx, L.mouth.x, L.mouth.y + 0.02 * w, 0.15 * w, 0.02 * w + L.open * 0.18 * w); }
+    else { ctx.beginPath(); ctx.arc(L.mouth.x - 0.07 * w, L.mouth.y - 0.04 * w, 0.07 * w, 0.1 * Math.PI, 0.9 * Math.PI); ctx.arc(L.mouth.x + 0.07 * w, L.mouth.y - 0.04 * w, 0.07 * w, 0.1 * Math.PI, 0.9 * Math.PI); ctx.stroke(); }
+    ctx.strokeStyle = "rgba(255,255,255,.9)"; ctx.lineWidth = 0.01 * w;
+    for (const sx of [-1, 1]) for (let k = -1; k <= 1; k++) {
+      ctx.beginPath(); ctx.moveTo(sx * 0.2 * w, L.nose.y + 0.1 * w + k * 0.04 * w); ctx.lineTo(sx * 0.62 * w, L.nose.y + 0.06 * w + k * 0.09 * w); ctx.stroke();
+    }
+  },
+  panda(ctx, L) {
+    const { w, u } = L;
+    const ryTop = 0.72 * w, ryBot = Math.max(0.64 * w, L.chin.y + 0.14 * w);
+    ctx.fillStyle = "#1A1A1E";
+    for (const sx of [-1, 1]) ell(ctx, sx * 0.5 * w, -0.6 * w, 0.19 * w, 0.19 * w);
+    headPath(ctx, 0.66 * w, 0, ryTop, ryBot);
+    ctx.fillStyle = "#FAFAFA"; ctx.fill(); ctx.strokeStyle = "#C9CDD3"; ctx.lineWidth = 0.02 * w; ctx.stroke();
+    [[-1, L.eyeL], [1, L.eyeR]].forEach(([sx, o]) => {
+      const ex = sx * 0.55 * u, ey = 0.0, open = Math.max(0.1, o);
+      ctx.save(); ctx.translate(ex, ey); ctx.rotate(sx * 0.5);
+      ctx.fillStyle = "#1A1A1E"; ell(ctx, 0, 0, 0.16 * w, 0.22 * w);
+      ctx.restore();
+      ctx.fillStyle = "#FFFFFF"; ell(ctx, ex, ey - 0.02 * w, 0.07 * w, 0.07 * w * open);
+      if (open > 0.3) { ctx.fillStyle = "#1A1A1E"; ell(ctx, ex, ey - 0.01 * w, 0.04 * w, 0.04 * w * open); ctx.fillStyle = "#FFFFFF"; ell(ctx, ex - 0.015 * w, ey - 0.03 * w, 0.012 * w, 0.012 * w); }
+    });
+    ctx.fillStyle = "rgba(255,140,170,.3)";
+    for (const sx of [-1, 1]) ell(ctx, sx * 0.4 * w, L.nose.y + 0.1 * w, 0.08 * w, 0.05 * w);
+    ctx.fillStyle = "#1A1A1E"; ctx.beginPath();
+    ctx.moveTo(L.nose.x - 0.08 * w, L.nose.y - 0.03 * w); ctx.quadraticCurveTo(L.nose.x, L.nose.y - 0.06 * w, L.nose.x + 0.08 * w, L.nose.y - 0.03 * w);
+    ctx.quadraticCurveTo(L.nose.x + 0.02 * w, L.nose.y + 0.07 * w, L.nose.x, L.nose.y + 0.07 * w);
+    ctx.quadraticCurveTo(L.nose.x - 0.02 * w, L.nose.y + 0.07 * w, L.nose.x - 0.08 * w, L.nose.y - 0.03 * w); ctx.fill();
+    ctx.strokeStyle = "#1A1A1E"; ctx.lineWidth = 0.018 * w; ctx.lineCap = "round";
+    if (L.open > 0.1) { ctx.fillStyle = "#4A0E1C"; ell(ctx, L.mouth.x, L.mouth.y + 0.02 * w, 0.12 * w, 0.02 * w + L.open * 0.16 * w); }
+    else { ctx.beginPath(); ctx.arc(L.mouth.x - 0.06 * w, L.mouth.y - 0.03 * w, 0.06 * w, 0.1 * Math.PI, 0.9 * Math.PI); ctx.arc(L.mouth.x + 0.06 * w, L.mouth.y - 0.03 * w, 0.06 * w, 0.1 * Math.PI, 0.9 * Math.PI); ctx.stroke(); }
+  },
   alien(ctx, L) {
     const { w } = L;
     const y0 = -0.05 * w, rx = 0.68 * w, ryTop = 0.95 * w, chinY = Math.max(0.72 * w, L.chin.y + 0.14 * w);
@@ -1355,7 +1473,7 @@ function renderEnv(now, W, H) {
 }
 
 // ---------- Overlays (color looks on top of everything) ----------
-let noiseTiles = null;
+let noiseTiles = null, warpC = null;
 function makeNoise() {
   noiseTiles = [];
   for (let k = 0; k < 4; k++) {
@@ -1401,6 +1519,38 @@ function applyOverlay(W, H, now) {
     for (let i = 0; i < 6; i++) { const r = Math.random() * 2.5 + 0.5; ctx.beginPath(); ctx.arc(Math.random() * W, Math.random() * H, r, 0, Math.PI * 2); ctx.fill(); }
     if (Math.random() < 0.3) { ctx.globalAlpha = 0.3; ctx.fillRect(Math.random() * W, 0, 1.5, H); }
     ctx.globalAlpha = 1;
+  }
+  if (ov === "underwater") {
+    if (!warpC) warpC = document.createElement("canvas");
+    if (warpC.width !== W || warpC.height !== H) { warpC.width = W; warpC.height = H; }
+    const wx = warpC.getContext("2d"); wx.drawImage(out, 0, 0);
+    const t = now / 1000, band = Math.max(6, Math.round(H / 90)), amp = Math.min(W, H) * 0.012;
+    for (let y = 0; y < H; y += band) {
+      const off = Math.sin(y * 0.025 + t * 2.2) * amp + Math.sin(y * 0.011 - t * 1.3) * amp * 0.6;
+      ctx.drawImage(warpC, 0, y, W, band, off, y, W, band);
+    }
+    ctx.globalCompositeOperation = "multiply"; ctx.globalAlpha = 0.55;
+    ctx.fillStyle = "#3FA4C8"; ctx.fillRect(0, 0, W, H);
+    ctx.globalCompositeOperation = "soft-light"; ctx.globalAlpha = 0.4;
+    ctx.fillStyle = "#1E6FA8"; ctx.fillRect(0, 0, W, H);
+    ctx.globalCompositeOperation = "lighter"; ctx.globalAlpha = 1;
+    for (let i = 0; i < 5; i++) {
+      const x0 = W * (0.1 + i * 0.2) + Math.sin(t * 0.5 + i) * W * 0.05, rw = W * 0.035;
+      const g = ctx.createLinearGradient(0, 0, 0, H);
+      g.addColorStop(0, "rgba(180,240,255,.22)"); g.addColorStop(1, "rgba(180,240,255,0)");
+      ctx.fillStyle = g; ctx.beginPath();
+      ctx.moveTo(x0 - rw, 0); ctx.lineTo(x0 + rw, 0); ctx.lineTo(x0 + rw * 3 + W * 0.08, H); ctx.lineTo(x0 + rw * 1.2 + W * 0.08, H); ctx.closePath(); ctx.fill();
+    }
+    ctx.fillStyle = "rgba(220,250,255,.5)";
+    const m = Math.min(W, H);
+    for (let i = 0; i < 14; i++) {
+      const x = (hash(i) * W + Math.sin(t + i) * 10) % W, y = H - ((t * 25 * (0.5 + hash(i + 7)) + hash(i + 3) * H) % H);
+      ctx.beginPath(); ctx.arc(x, y, m * 0.004 * (1 + hash(i + 11)), 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.globalCompositeOperation = "source-over";
+    const vg = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.35, W / 2, H / 2, Math.max(W, H) * 0.75);
+    vg.addColorStop(0, "rgba(0,30,60,0)"); vg.addColorStop(1, "rgba(0,30,60,.45)");
+    ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
   }
   if (ov === "mexico") {
     ctx.globalCompositeOperation = "multiply"; ctx.globalAlpha = 0.55;
@@ -1960,6 +2110,7 @@ function renderFace(W, H, now) {
   drawFeature(f.eR, eyeW, eyeH, k, f.roll, cx + gap / 2, cy - 0.12 * R * state.size, alpha);
   const mW = Math.max(f.m.w * 1.35, u * 0.6), mH = Math.max(f.m.h * 1.5, u * 0.42);
   drawFeature(f.m, mW, mH, k, f.roll, cx, cy + 0.42 * R * state.size, alpha);
+  if (since < 300) state.emit = { x: cx, y: cy + 0.42 * R * state.size, roll: 0, u: gap, open: clamp((f.mouthOpen - 0.05) / 0.4, 0, 1) };
 }
 
 // ---------- Main loop ----------
@@ -1981,9 +2132,9 @@ function loop() {
   state.lastLoop = now;
   state.emit = null;
 
-  if (state.mode === "plain" || state.mode === "overlay") { octx.drawImage(src, 0, 0); applyOverlay(W, H, now); captureFrame(now); return; }
-
-  if (state.mode !== "env" && state.landmarker && cam.currentTime !== state.lastVideoTime) {
+  const look = state.look;
+  const needFace = look !== "plain" || state.mouthFx !== "none";
+  if (needFace && state.landmarker && cam.currentTime !== state.lastVideoTime) {
     state.lastVideoTime = cam.currentTime;
     try {
       const res = state.landmarker.detectForVideo(cam, now);
@@ -1993,15 +2144,22 @@ function loop() {
       }
     } catch (e) { console.warn(e); }
   }
-  if (state.mode === "face") renderFace(W, H, now);
-  else if (state.mode === "toon") { renderToon(W, H, now); runFx(now); }
-  else if (state.mode === "env") { octx.drawImage(src, 0, 0); renderEnv(now, W, H); }
+  // 1. the look
+  if (look === "face") renderFace(W, H, now);
+  else if (look === "toon") renderToon(W, H, now);
   else {
     octx.drawImage(src, 0, 0);
-    if (state.mode === "mask") renderMask(now); else renderAccessories(now);
-    runFx(now);
+    if (look === "mask") renderMask(now);
+    else if (look === "acc") renderAccessories(now);
+    else if (state.face && now - state.lastSeen < 300) {
+      const f = state.face;
+      state.emit = { x: f.m.cx, y: f.m.cy, roll: f.roll, u: f.unit, open: clamp((f.mouthOpen - 0.05) / 0.4, 0, 1) };
+    }
   }
-  if (!state.landmarker && state.mode !== "env") {
+  // 2. extras: weather, mouth magic, colors
+  if (state.env !== "none") renderEnv(now, W, H);
+  runFx(now);
+  if (!state.landmarker && needFace) {
     octx.fillStyle = "rgba(43,22,64,.7)";
     octx.fillRect(0, H / 2 - 40, W, 80);
     octx.fillStyle = "#FFF6E0"; octx.textAlign = "center"; octx.textBaseline = "middle";
@@ -2061,82 +2219,192 @@ $("startBtn").onclick = async () => {
     .catch((e) => { console.error(e); toast("Face finder didn’t load. Check the internet and reload."); });
 };
 
-// ---------- Controls ----------
+// ---------- Controls: the filter drawer ----------
 function pressGroup(row, btn) { row.querySelectorAll(".chip").forEach((b) => b.setAttribute("aria-pressed", String(b === btn))); }
 
-$("modeRow").onclick = (e) => {
-  const b = e.target.closest("[data-mode]"); if (!b) return;
-  pressGroup($("modeRow"), b); state.mode = b.dataset.mode;
-  const ROWS = {
-    face: ["bgRow"], acc: ["hatRow", "glassRow", "mouthRow"], mask: ["maskRow", "mouthRow"],
-    env: ["envRow"], toon: ["toonRow", "headRow", "mouthRow"], overlay: ["overlayRow"], plain: [],
+const CATS = {
+  mask: { label: "Masks", em: "👹", kind: "look", color: "#3B6D11", panel: "#97C459", tile: "#F4F9EC", ink: "#27500A",
+    sections: [{ key: "mask", items: [["monster", "👹", "Monster"], ["robot", "🤖", "Robot"], ["alien", "👽", "Alien"], ["dragon", "🐉", "Dragon"], ["dog", "🐶", "Dog"], ["kabuki", "👺", "Kabuki"], ["knight", "⚔️", "Knight"], ["fish", "🐠", "Fish"], ["shark", "🦈", "Shark"], ["tiger", "🐯", "Tiger"], ["panda", "🐼", "Panda"]] }] },
+  acc: { label: "Hats", em: "🎩", kind: "look", color: "#BA7517", panel: "#FAC775", tile: "#FFF7E6", ink: "#633806",
+    sections: [
+      { key: "hat", title: "🎩 Hats", items: [["none", "🚫", "No hat"], ["cap", "🧢", "Ball cap"], ["bowler", "🎳", "Bowler"], ["tophat", "🎩", "Top hat"], ["bunny", "🐰", "Bunny ears"], ["viking", "🛡️", "Viking"], ["wizard", "🧙", "Wizard"], ["hardhat", "👷", "Hard hat"], ["unicorn", "🦄", "Unicorn"]] },
+      { key: "glasses", title: "👓 Glasses", items: [["none", "🚫", "No glasses"], ["sun", "😎", "Sunglasses"], ["eye", "👓", "Glasses"], ["silly", "🥸", "Silly"], ["googly", "👀", "Googly eyes"], ["visor", "🛸", "Sci-fi visor"], ["robber", "🦹", "Robber mask"]] },
+    ] },
+  face: { label: "Pictures", em: "🎃", kind: "look", color: "#993556", panel: "#ED93B1", tile: "#FDF0F5", ink: "#4B1528",
+    sections: [{ key: "bg", items: [["pumpkin", "🎃", "Pumpkin"], ["potato", "🥔", "Potato"], ["moon", "🌕", "Moon"], ["orange", "🍊", "Orange"], ["xmas", "🎄", "Christmas tree"], ["tree", "🌳", "Tree"], ["photo", "🖼️", "My picture"]] }] },
+  toon: { label: "Cartoons", em: "🎸", kind: "look", color: "#993C1D", panel: "#F0997B", tile: "#FDF1EC", ink: "#4A1B0C",
+    sections: [
+      { key: "toon", title: "🎬 Scenes", items: [["rock", "🎸", "Rock star"], ["drive", "🚗", "Driver"], ["space", "🚀", "Spaceship"], ["jail", "🔒", "In jail"]] },
+      { key: "toonHead", title: "🙂 Heads", items: [["kid", "🙂", "Kid"], ["monster", "👹", "Monster"], ["robot", "🤖", "Robot"], ["alien", "👽", "Alien"], ["dragon", "🐉", "Dragon"], ["dog", "🐶", "Dog"], ["kabuki", "👺", "Kabuki"], ["fish", "🐠", "Fish"], ["tiger", "🐯", "Tiger"], ["panda", "🐼", "Panda"]] },
+    ] },
+  mouth: { label: "Mouth", em: "🔥", kind: "extra", color: "#A32D2D", panel: "#F09595", tile: "#FDF0F0", ink: "#501313",
+    sections: [{ key: "mouthFx", items: [["none", "🚫", "Off"], ["fire", "🔥", "Fire"], ["rainbow", "🌈", "Rainbow"], ["bubbles", "🫧", "Bubbles"], ["tongue", "👅", "Tongue"], ["sparkles", "✨", "Sparkles"]] }] },
+  weather: { label: "Weather", em: "🌧️", kind: "extra", color: "#185FA5", panel: "#85B7EB", tile: "#EEF6FD", ink: "#042C53",
+    sections: [{ key: "env", items: [["none", "🚫", "Off"], ["disco", "🪩", "Disco"], ["snow", "❄️", "Snow"], ["confetti", "🎉", "Confetti"], ["blossom", "🌸", "Blossoms"], ["fog", "🌫️", "Foggy"], ["rain", "🌧️", "Rainy"]] }] },
+  colors: { label: "Colors", em: "🎞️", kind: "extra", color: "#534AB7", panel: "#AFA9EC", tile: "#F3F2FE", ink: "#26215C",
+    sections: [{ key: "overlay", items: [["none", "🚫", "Off"], ["bw", "⚫", "Black & white"], ["sepia", "📜", "Sepia"], ["grain", "🎞️", "Old film"], ["mexico", "🌵", "Mexico"], ["underwater", "🌊", "Underwater"]] }] },
+};
+const LOOKS = ["mask", "acc", "face", "toon"], EXTRAS = ["mouth", "weather", "colors"];
+const EXTRA_KEY = { mouth: "mouthFx", weather: "env", colors: "overlay" };
+
+function findItem(cat, key, val) {
+  for (const sec of CATS[cat].sections) if (sec.key === key) { const it = sec.items.find((i) => i[0] === val); if (it) return it; }
+  return null;
+}
+function el(tag, cls, text) { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+function tileContent(btn, em, label) { btn.appendChild(el("span", "em", em)); btn.appendChild(document.createTextNode(label)); }
+
+function buildCats() {
+  const mk = (keys, box) => {
+    box.innerHTML = "";
+    keys.forEach((k) => {
+      const c = CATS[k], b = el("button", "cat");
+      b.dataset.cat = k; b.style.background = c.color;
+      b.appendChild(el("span", "dot")); tileContent(b, c.em, c.label);
+      b.onclick = () => { state.cat = k; refreshUI(); $("panel").scrollTop = 0; };
+      box.appendChild(b);
+    });
   };
-  ["bgRow", "hatRow", "glassRow", "maskRow", "mouthRow", "envRow", "toonRow", "headRow", "overlayRow"].forEach((id) => {
-    $(id).style.display = ROWS[state.mode].includes(id) ? "" : "none";
+  mk(LOOKS, $("looks")); mk(EXTRAS, $("extras"));
+}
+
+function isOn(cat, key, val) {
+  if (val === "__plain") return state.look === "plain";
+  if (CATS[cat].kind === "look") return state.look === cat && state[key] === val;
+  return state[key] === val;
+}
+
+function renderPanel() {
+  const c = CATS[state.cat], p = $("panel");
+  p.style.background = c.panel; p.style.setProperty("--ink", c.ink);
+  p.innerHTML = "";
+  let lastGrid = null;
+  c.sections.forEach((sec) => {
+    if (sec.title) { const h = el("div", "sec-title", sec.title); h.style.color = c.ink; p.appendChild(h); }
+    const g = el("div", "tiles");
+    sec.items.forEach(([val, em, label]) => {
+      const b = el("button", "tile");
+      b.style.background = c.tile; b.style.color = c.ink;
+      b.setAttribute("aria-pressed", String(isOn(state.cat, sec.key, val)));
+      tileContent(b, em, label);
+      b.onclick = () => pick(state.cat, sec.key, val);
+      g.appendChild(b);
+    });
+    p.appendChild(g); lastGrid = g;
   });
-  $("sizeRow").hidden = state.mode !== "face";
+  if (c.kind === "look") {
+    const b = el("button", "tile");
+    b.style.background = c.tile; b.style.color = c.ink;
+    b.setAttribute("aria-pressed", String(state.look === "plain"));
+    tileContent(b, "✖️", "Plain camera");
+    b.onclick = () => pick(state.cat, "look", "__plain");
+    lastGrid.appendChild(b);
+  }
+  if (state.cat === "face") {
+    const row = el("label", "size-row"); row.style.color = c.ink;
+    row.appendChild(document.createTextNode("Face size"));
+    const r = document.createElement("input");
+    r.type = "range"; r.min = "0.5"; r.max = "1.8"; r.step = "0.05"; r.value = String(state.size); r.style.flex = "1"; r.style.accentColor = c.color;
+    r.oninput = () => { state.size = parseFloat(r.value); };
+    row.appendChild(r); p.appendChild(row);
+  }
+}
+
+function pick(cat, key, val) {
+  if (val === "__plain") { state.look = "plain"; refreshUI(); return; }
+  if (key === "bg" && val === "photo") { $("photoInput").click(); return; }
+  state[key] = val;
+  if (CATS[cat].kind === "look") state.look = cat;
+  if (key === "bg") { state.offX = state.offY = 0; redrawBg(); }
+  if (key === "mask") {
+    if (val === "dog") state.mouthFx = "tongue";
+    else if (val === "dragon") state.mouthFx = "fire";
+    else if ((val === "fish" || val === "shark") && (state.mouthFx === "none" || state.mouthFx === "tongue")) state.mouthFx = "bubbles";
+    else if (state.mouthFx === "tongue") state.mouthFx = "none";
+  }
+  if (key === "hat" && val === "wizard") state.mouthFx = "sparkles";
+  if (key === "mouthFx" && val !== "none") toast("Open your mouth wide!");
+  refreshUI();
+}
+
+function activeList() {
+  const out = [];
+  const add = (cat, key, val, off) => { const it = findItem(cat, key, val); if (it) out.push({ em: it[1], label: it[2], off }); };
+  if (state.look === "mask") add("mask", "mask", state.mask, () => { state.look = "plain"; });
+  if (state.look === "acc") {
+    if (state.hat !== "none") add("acc", "hat", state.hat, () => { state.hat = "none"; });
+    if (state.glasses !== "none") add("acc", "glasses", state.glasses, () => { state.glasses = "none"; });
+  }
+  if (state.look === "face") add("face", "bg", state.bg, () => { state.look = "plain"; });
+  if (state.look === "toon") add("toon", "toon", state.toon, () => { state.look = "plain"; });
+  for (const cat of EXTRAS) { const k = EXTRA_KEY[cat]; if (state[k] !== "none") add(cat, k, state[k], () => { state[k] = "none"; }); }
+  return out;
+}
+
+function refreshUI() {
+  document.querySelectorAll(".cat").forEach((b) => {
+    const k = b.dataset.cat;
+    b.setAttribute("aria-selected", String(k === state.cat));
+    const on = CATS[k].kind === "look" ? state.look === k : state[EXTRA_KEY[k]] !== "none";
+    b.classList.toggle("active", on);
+  });
+  renderPanel();
+  const pills = $("pills"); pills.innerHTML = "";
+  const list = activeList();
+  list.forEach((a) => {
+    const b = el("button", "pill");
+    b.appendChild(document.createTextNode(a.em + " " + a.label + " "));
+    b.appendChild(el("span", "x", "✖"));
+    b.onclick = (e) => { e.stopPropagation(); a.off(); refreshUI(); };
+    pills.appendChild(b);
+  });
+  const hb = $("handleBtn");
+  hb.style.background = CATS[state.cat].color;
+  hb.classList.toggle("open", state.drawer);
+  $("handleEm").textContent = state.drawer ? "🔽" : (list[0] ? list[0].em : "🎨");
+  hb.setAttribute("aria-label", state.drawer ? "Close filters" : "Open filters");
+  $("pills").style.display = state.drawer ? "none" : "";
   updateHint();
-};
-$("bgRow").onclick = (e) => {
-  const b = e.target.closest("[data-bg]"); if (!b) return;
-  if (b.dataset.bg === "photo") { $("photoInput").click(); return; }
-  pressGroup($("bgRow"), b); state.bg = b.dataset.bg; state.offX = state.offY = 0; redrawBg();
-};
+}
+
+function setDrawer(open) {
+  state.drawer = open;
+  $("drawer").classList.toggle("open", open);
+  $("drawer").setAttribute("aria-hidden", String(!open));
+  refreshUI();
+}
+$("handleBtn").onclick = () => setDrawer(!state.drawer);
+
+// swipe up on the bottom bar opens; swipe down (or tap) on the grab bar closes
+function swipe(elm, onUp, onDown, onTap) {
+  let y0 = null;
+  elm.addEventListener("pointerdown", (e) => { y0 = e.clientY; });
+  elm.addEventListener("pointerup", (e) => {
+    if (y0 == null) return;
+    const dy = e.clientY - y0; y0 = null;
+    if (dy < -30 && onUp) onUp(e); else if (dy > 30 && onDown) onDown(e); else if (onTap) onTap(e);
+  });
+  elm.addEventListener("pointercancel", () => { y0 = null; });
+}
+swipe($("bar"), () => setDrawer(true), () => setDrawer(false));
+swipe($("grabzone"), null, () => setDrawer(false), () => setDrawer(false));
+swipe($("drawer"), null, (e) => { if ($("panel").scrollTop <= 0 || !e.target.closest(".panel")) setDrawer(false); });
+
 $("photoInput").onchange = () => {
   const file = $("photoInput").files[0]; if (!file) return;
   const img = new Image();
   img.onload = () => {
-    state.photo = img; state.bg = "photo"; state.offX = state.offY = 0;
-    pressGroup($("bgRow"), $("bgRow").querySelector('[data-bg="photo"]'));
-    redrawBg(); toast("Drag to put your face where you want it");
+    state.photo = img; state.bg = "photo"; state.look = "face"; state.offX = state.offY = 0;
+    redrawBg(); refreshUI(); toast("Drag to put your face where you want it");
   };
   img.src = URL.createObjectURL(file);
   $("photoInput").value = "";
 };
-$("hatRow").onclick = (e) => {
-  const b = e.target.closest("[data-hat]"); if (!b) return;
-  pressGroup($("hatRow"), b); state.hat = b.dataset.hat;
-  if (state.hat === "wizard") setMouthFx("sparkles");
-};
-$("glassRow").onclick = (e) => {
-  const b = e.target.closest("[data-glasses]"); if (!b) return;
-  pressGroup($("glassRow"), b); state.glasses = b.dataset.glasses;
-};
-function setMouthFx(fx) {
-  state.mouthFx = fx;
-  pressGroup($("mouthRow"), $("mouthRow").querySelector(`[data-fx="${fx}"]`));
-}
-$("maskRow").onclick = (e) => {
-  const b = e.target.closest("[data-mask]"); if (!b) return;
-  pressGroup($("maskRow"), b); state.mask = b.dataset.mask;
-  if (state.mask === "dog") setMouthFx("tongue");
-  else if (state.mask === "dragon") setMouthFx("fire");
-  else if (state.mask === "knight" || state.mask === "kabuki") { if (state.mouthFx === "tongue") setMouthFx("none"); }
-};
-$("overlayRow").onclick = (e) => {
-  const b = e.target.closest("[data-ov]"); if (!b) return;
-  pressGroup($("overlayRow"), b); state.overlay = b.dataset.ov;
-};
-$("envRow").onclick = (e) => {
-  const b = e.target.closest("[data-env]"); if (!b) return;
-  pressGroup($("envRow"), b); state.env = b.dataset.env;
-};
-$("toonRow").onclick = (e) => {
-  const b = e.target.closest("[data-toon]"); if (!b) return;
-  pressGroup($("toonRow"), b); state.toon = b.dataset.toon;
-};
-$("headRow").onclick = (e) => {
-  const b = e.target.closest("[data-head]"); if (!b) return;
-  pressGroup($("headRow"), b); state.toonHead = b.dataset.head;
-};
-$("mouthRow").onclick = (e) => {
-  const b = e.target.closest("[data-fx]"); if (!b) return;
-  pressGroup($("mouthRow"), b); state.mouthFx = b.dataset.fx;
-  if (state.mouthFx !== "none") toast("Open your mouth wide!");
-};
-$("size").oninput = (e) => { state.size = parseFloat(e.target.value); };
 
-function updateHint() { $("hint").hidden = state.mode !== "face" || !state.stream; }
+function updateHint() { $("hint").hidden = state.look !== "face" || !state.stream || state.drawer; }
+
+buildCats();
+refreshUI();
 
 // drag to move the face on the picture
 let drag = null;
@@ -2145,8 +2413,12 @@ function toCanvas(e) {
   const s = Math.min(r.width / out.width, r.height / out.height);
   return { x: (e.clientX - r.left - (r.width - out.width * s) / 2) / s, y: (e.clientY - r.top - (r.height - out.height * s) / 2) / s };
 }
+let stageY0 = null;
 $("stage").addEventListener("pointerdown", (e) => {
-  if (state.mode !== "face" || !state.stream || e.target.closest("button")) return;
+  if (e.target.closest("button")) return;
+  if (state.drawer) { setDrawer(false); return; }
+  stageY0 = e.clientY;
+  if (state.look !== "face" || !state.stream) return;
   const p = toCanvas(e); drag = { x: p.x, y: p.y, ox: state.offX, oy: state.offY };
   $("stage").setPointerCapture(e.pointerId); $("hint").hidden = true;
 });
@@ -2154,7 +2426,11 @@ $("stage").addEventListener("pointermove", (e) => {
   if (!drag) return; const p = toCanvas(e);
   state.offX = drag.ox + p.x - drag.x; state.offY = drag.oy + p.y - drag.y;
 });
-["pointerup", "pointercancel"].forEach((t) => $("stage").addEventListener(t, () => { drag = null; }));
+$("stage").addEventListener("pointerup", (e) => {
+  if (!drag && stageY0 != null && e.clientY - stageY0 < -60) setDrawer(true);
+  drag = null; stageY0 = null;
+});
+$("stage").addEventListener("pointercancel", () => { drag = null; stageY0 = null; });
 
 // ---------- Recording ----------
 function pickMime() {
@@ -2227,6 +2503,7 @@ $("recBtn").onclick = () => {
   if (state.counting) { cancelCountdown(); return; }
   if (state.starting || state.processing) return;
   if (!state.stream || !out.width) { toast("Turn on the camera first"); return; }
+  if (state.drawer) setDrawer(false);
   if (state.timer) startCountdown(); else beepThenRecord();
 };
 
