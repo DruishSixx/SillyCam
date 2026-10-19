@@ -1502,12 +1502,16 @@ async function loadHands() {
   handLoading = false;
 }
 // Cut his real hands out of the camera and draw them back on top of hats, glasses and masks.
-// The mask is drawn at quarter size, so scaling it back up softens the edges for free.
+// The finger shapes are drawn close to real finger width, and then trimmed by the person
+// cutout, so only HIM shows through: never the room behind his fingers.
 let handMaskC = null, hmCtx = null, handLayerC = null, hlCtx = null;
 const HAND_CHAINS = [[0, 1, 2, 3, 4], [0, 5, 6, 7, 8], [5, 9, 10, 11, 12], [9, 13, 14, 15, 16], [13, 17, 18, 19, 20], [0, 17]];
 function drawHandsOnTop(W, H) {
   if (!lastHands.length) return;
-  const sc = 0.25, mw = Math.max(8, Math.round(W * sc)), mh = Math.max(8, Math.round(H * sc));
+  // trim with the person cutout (already running if a Place is on; otherwise run it here)
+  if (state.place === "none") { if (!segmenter) loadSegmenter(); else runSegmentation(performance.now(), W, H); }
+  const usePerson = !!segmenter && state.maskReady && maskC;
+  const sc = 0.5, mw = Math.max(8, Math.round(W * sc)), mh = Math.max(8, Math.round(H * sc));
   if (!handMaskC) { handMaskC = document.createElement("canvas"); hmCtx = handMaskC.getContext("2d"); handLayerC = document.createElement("canvas"); hlCtx = handLayerC.getContext("2d"); }
   if (handMaskC.width !== mw || handMaskC.height !== mh) { handMaskC.width = mw; handMaskC.height = mh; }
   if (handLayerC.width !== W || handLayerC.height !== H) { handLayerC.width = W; handLayerC.height = H; }
@@ -1520,17 +1524,17 @@ function drawHandsOnTop(W, H) {
     hmCtx.beginPath();
     [0, 1, 2, 5, 9, 13, 17].forEach((i, k) => (k ? hmCtx.lineTo(P[i].x, P[i].y) : hmCtx.moveTo(P[i].x, P[i].y)));
     hmCtx.closePath(); hmCtx.fill();
-    hmCtx.lineWidth = u * 0.34;
-    for (const ch of HAND_CHAINS) {
+    HAND_CHAINS.forEach((ch, ci) => {
+      hmCtx.lineWidth = u * (ci === 0 ? 0.26 : ci === 5 ? 0.2 : 0.21);
       hmCtx.beginPath(); hmCtx.moveTo(P[ch[0]].x, P[ch[0]].y);
       for (let k = 1; k < ch.length; k++) hmCtx.lineTo(P[ch[k]].x, P[ch[k]].y);
       const a = P[ch[ch.length - 2]], b = P[ch[ch.length - 1]];
-      if (ch.length > 2) hmCtx.lineTo(b.x + (b.x - a.x) * 0.3, b.y + (b.y - a.y) * 0.3);
+      if (ch.length > 2) hmCtx.lineTo(b.x + (b.x - a.x) * 0.12, b.y + (b.y - a.y) * 0.12);
       hmCtx.stroke();
-    }
-    hmCtx.lineWidth = u * 0.6;
+    });
+    hmCtx.lineWidth = u * 0.5;
     hmCtx.beginPath(); hmCtx.moveTo(P[0].x, P[0].y);
-    hmCtx.lineTo(P[0].x + (P[0].x - P[9].x) * 0.5, P[0].y + (P[0].y - P[9].y) * 0.5); hmCtx.stroke();
+    hmCtx.lineTo(P[0].x + (P[0].x - P[9].x) * 0.3, P[0].y + (P[0].y - P[9].y) * 0.3); hmCtx.stroke();
   }
   hlCtx.globalCompositeOperation = "source-over";
   hlCtx.clearRect(0, 0, W, H);
@@ -1538,6 +1542,7 @@ function drawHandsOnTop(W, H) {
   hlCtx.globalCompositeOperation = "destination-in";
   hlCtx.imageSmoothingEnabled = true;
   hlCtx.drawImage(handMaskC, 0, 0, W, H);
+  if (usePerson) hlCtx.drawImage(maskC, 0, 0, W, H);
   hlCtx.globalCompositeOperation = "source-over";
   octx.drawImage(handLayerC, 0, 0);
 }
@@ -2825,7 +2830,7 @@ function loop() {
   state.fpsAvg = state.fpsAvg ? state.fpsAvg * 0.95 + (60 / state.dt) * 0.05 : 60 / state.dt;
   if (!$("fps").hidden && Math.floor(now / 500) !== state.fpsTick) {
     state.fpsTick = Math.floor(now / 500);
-    $("fps").textContent = `${Math.round(state.fpsAvg)} fps` + (state.place !== "none" && segmenter ? ` · cutout ${Math.round(segMs)}ms${segSkip ? " (half)" : ""}` : "")
+    $("fps").textContent = `${Math.round(state.fpsAvg)} fps` + ((state.place !== "none" || state.handFx !== "none") && segmenter ? ` · cutout ${Math.round(segMs)}ms${segSkip ? " (half)" : ""}` : "")
       + (state.handFx !== "none" && handLm ? ` · hands ${Math.round(handMs)}ms${handSkip ? " (half)" : ""}` : "");
   }
 }
