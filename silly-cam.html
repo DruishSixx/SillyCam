@@ -383,7 +383,7 @@
 import { FaceLandmarker, FilesetResolver, ImageSegmenter, HandLandmarker } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/vision_bundle.mjs";
 
 // Bump this with every update so you can tell which version the phone is running.
-const APP_VERSION = "1.17";
+const APP_VERSION = "1.18";
 const $ = (id) => document.getElementById(id);
 $("ver").textContent = "v" + APP_VERSION;
 const cam = $("cam"), out = $("out"), octx = out.getContext("2d");
@@ -393,7 +393,7 @@ const feat = document.createElement("canvas"), fctx = feat.getContext("2d");
 
 const state = {
   look: "mask", cat: "mask", drawer: false, bg: "pumpkin", photo: null,
-  hat: "tophat", glasses: "sun", mask: "monster", mouthFx: "none", env: "none", place: "none", maskReady: false, bot: "robot", bs: null, faceM: null, fpsAvg: 0, handFx: "none", handTrigger: "all", toon: "rock", overlay: "none", timer: false, counting: false, starting: false, toonHead: "kid", emit: null, dt: 1, lastLoop: 0,
+  hat: "tophat", glasses: "sun", mask: "monster", mouthFx: "none", env: "none", place: "none", maskReady: false, bot: "robot", botFace: "bot", bs: null, faceM: null, fpsAvg: 0, handFx: "none", handTrigger: "all", toon: "rock", overlay: "none", timer: false, counting: false, starting: false, toonHead: "kid", emit: null, dt: 1, lastLoop: 0,
   size: 1, offX: 0, offY: 0,
   landmarker: null, stream: null, lastVideoTime: -1,
   face: null, lastSeen: 0,
@@ -2672,8 +2672,11 @@ function renderBot(W, H, now) {
     A.hand.quaternion.setFromUnitVectors(new T.Vector3(0, -1, 0), Hd.clone().sub(E).normalize());
     A.claws.forEach((c, i) => { c.rotation.z = (i ? -1 : 1) * (0.15 + A.open * 0.7); });
   }
+  const realFace = state.botFace === "me" && BUDDIES[state.bot] && BUDDIES[state.bot].realFace && live;
+  B.eyes.concat(B.brows, B.segs, B.cheeks).forEach((m) => { m.visible = !realFace; });
   B.renderer.render(B.scene, B.cam3);
   octx.drawImage(B.renderer.domElement, 0, 0, W, H);
+  if (realFace) drawRealFaceOnBot(B, f, W, H);
   // mouth magic comes out of the robot's mouth
   if (live && now - state.lastSeen < 300) {
     const mp = B.mouth.getWorldPosition(B.tmp).project(B.cam3);
@@ -2681,6 +2684,24 @@ function renderBot(W, H, now) {
     const u = Math.hypot((e1.x - e2.x) * W / 2, (e1.y - e2.y) * H / 2) * 1.3;
     state.emit = { x: (mp.x + 1) / 2 * W, y: (1 - mp.y) / 2 * H, roll: -B.rot.z, u, open: jaw };
   }
+}
+
+// His real eyes and mouth, cut from the camera and stuck onto the buddy's face.
+// They follow the 3D head: placed at the buddy's eye/mouth spots, tilted with it, squished as it turns.
+function drawRealFaceOnBot(B, f, W, H) {
+  const T = THREE, toScr = (o) => { const v = o.getWorldPosition(new T.Vector3()).project(B.cam3); return { x: (v.x + 1) / 2 * W, y: (1 - v.y) / 2 * H }; };
+  const eL = toScr(B.eyes[0]), eR = toScr(B.eyes[1]), mo = toScr(B.mouth);
+  const gap = Math.hypot(eR.x - eL.x, eR.y - eL.y) * 1.15;
+  const ang = Math.atan2(eR.y - eL.y, eR.x - eL.x);
+  const k = gap / Math.max(f.unit, 1), u = f.unit, squish = Math.max(0.35, Math.cos(B.rot.y));
+  const put = (box, cw, ch, x, y) => {
+    octx.save(); octx.translate(x, y); octx.rotate(ang); octx.scale(squish, 1);
+    drawFeature(box, cw, ch, k, f.roll, 0, 0, 1);
+    octx.restore();
+  };
+  put(f.eL, u * 0.72, u * 0.5, eL.x, eL.y);
+  put(f.eR, u * 0.72, u * 0.5, eR.x, eR.y);
+  put(f.m, Math.max(f.m.w * 1.35, u * 0.6), Math.max(f.m.h * 1.5, u * 0.42), mo.x, mo.y);
 }
 
 function renderToon(W, H, now) {
@@ -3133,7 +3154,13 @@ CATS.hands = { label: "Hands", em: "🙌", kind: "extra", color: "#7A2E8E", pane
     { key: "handFx", title: "✨ Magic", items: [["none", "🚫", "Off"], ["sparkles", "✨", "Sparkles"], ["confetti", "🎉", "Confetti"], ["bubbles", "🫧", "Bubbles"]] },
   ] };
 CATS.bot = { label: "3D", em: "🤖", kind: "look", color: "#5F5E5A", panel: "#D3D1C7", tile: "#F1EFE8", ink: "#2C2C2A",
-  sections: [{ key: "bot", items: [["robot", "🤖", "Robot"]] }] };
+  sections: [
+    { key: "bot", title: "🧸 Buddies", items: [["robot", "🤖", "Robot"]] },
+    { key: "botFace", title: "😀 Face", when: () => BUDDIES[state.bot] && BUDDIES[state.bot].realFace,
+      items: [["bot", "🤖", "Buddy face"], ["me", "👀", "My eyes & mouth"]] },
+  ] };
+// What each 3D buddy can do. realFace: his real eyes and mouth can be shown on its face.
+const BUDDIES = { robot: { realFace: true } };
 const LOOKS = ["mask", "acc", "face", "toon", "bot"], EXTRAS = ["places", "mouth", "weather", "colors", "hands"];
 const EXTRA_KEY = { places: "place", mouth: "mouthFx", weather: "env", colors: "overlay", hands: "handFx" };
 
@@ -3170,6 +3197,7 @@ function renderPanel() {
   p.innerHTML = "";
   let lastGrid = null;
   c.sections.forEach((sec) => {
+    if (sec.when && !sec.when()) return;
     if (sec.title) { const h = el("div", "sec-title", sec.title); h.style.color = c.ink; p.appendChild(h); }
     const g = el("div", "tiles");
     sec.items.forEach(([val, em, label]) => {
@@ -3180,7 +3208,7 @@ function renderPanel() {
       b.onclick = () => pick(state.cat, sec.key, val);
       g.appendChild(b);
     });
-    p.appendChild(g); lastGrid = g;
+    p.appendChild(g); if (!lastGrid) lastGrid = g; // "Plain camera" goes in the first group
   });
   if (c.kind === "look") {
     const b = el("button", "tile");
