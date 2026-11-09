@@ -153,8 +153,8 @@
   .cats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
   .cat { border: 0; border-radius: 14px; height: 60px; display: flex; flex-direction: column; align-items: center; justify-content: center; font-weight: 800; font-size: .85rem; line-height: 1.1; color: #fff; position: relative; padding: 0; }
   .cat .em { font-size: 1.45rem; line-height: 1.1; }
-  #extras { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
-  #extras .cat { font-size: .74rem; }
+  #extras, #looks { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
+  #extras .cat, #looks .cat { font-size: .74rem; }
   .cat[aria-selected="true"] { outline: 4px solid #fff; outline-offset: -4px; }
   .cat .dot { position: absolute; top: 5px; right: 6px; width: 11px; height: 11px; border-radius: 50%; background: var(--sun); border: 2px solid #fff; display: none; }
   .cat.active .dot { display: block; }
@@ -250,6 +250,13 @@
     position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
     font-size: 4rem; background: transparent; border: 0; color: rgba(255,246,224,.9);
   }
+  .voice-btn { font-size: 1.05rem; padding: 6px 16px 4px; background: var(--lav); border-color: var(--lav-2); }
+  .voice-pop { position: absolute; left: 10px; right: 10px; bottom: 10px; z-index: 5; background: rgba(30,15,46,.96); border: 3px solid var(--lav-2); border-radius: 22px; padding: 12px; max-height: calc(100% - 20px); overflow-y: auto; }
+  .voice-pop[hidden] { display: none; }
+  .vp-title { font-weight: 800; font-size: 1.1rem; margin: 0 4px 8px; }
+  .vp-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(88px, 1fr)); gap: 8px; }
+  .vp-grid .chip { flex-direction: column; justify-content: center; height: 76px; border-radius: 14px; font-size: .8rem; line-height: 1.1; gap: 2px; padding: 4px; text-align: center; }
+  .vp-grid .chip .em { font-size: 1.8rem; line-height: 1; }
   .speeds { display: flex; gap: 8px; justify-content: center; padding: 12px 12px 4px; flex-wrap: wrap; }
   .speed { min-width: 58px; justify-content: center; }
   .player-foot { display: flex; justify-content: space-between; align-items: center; padding: 6px 16px 12px; gap: 8px; }
@@ -330,6 +337,10 @@
       <video id="player" playsinline webkit-playsinline disablepictureinpicture controlslist="nodownload noremoteplayback" loop></video>
       <canvas id="fplayer" hidden></canvas>
       <button class="tap-play" id="tapPlay" aria-label="Play">▶</button>
+      <div class="voice-pop" id="voicePop" hidden>
+        <div class="vp-title">🗣️ Pick a voice</div>
+        <div class="vp-grid" id="voices" role="group" aria-label="Voice"></div>
+      </div>
     </div>
     <div class="speeds" id="dirs" role="group" aria-label="Direction">
       <button class="chip" data-dir="fwd" aria-pressed="true">▶️ Forward</button>
@@ -341,14 +352,8 @@
       <button class="chip speed" data-rate="1" aria-pressed="true">1×</button>
       <button class="chip speed" data-rate="2" aria-pressed="false">🐇 2×</button>
     </div>
-    <div class="speeds" id="voices" role="group" aria-label="Voice" style="padding-top:4px">
-      <button class="chip" data-voice="normal" aria-pressed="true">🗣️ Normal</button>
-      <button class="chip" data-voice="robot" aria-pressed="false">🤖 Robot</button>
-      <button class="chip" data-voice="echo" aria-pressed="false">⛰️ Echo</button>
-      <button class="chip" data-voice="cave" aria-pressed="false">🦇 Cave</button>
-      <button class="chip" data-voice="walkie" aria-pressed="false">📻 Walkie-talkie</button>
-      <button class="chip" data-voice="alien" aria-pressed="false">👽 Alien</button>
-      <button class="chip" data-voice="chorus" aria-pressed="false">🎤 Chorus</button>
+    <div class="speeds" style="padding-top:4px">
+      <button class="chip voice-btn" id="voiceBtn" aria-haspopup="true">🗣️ Voice: Normal ▾</button>
     </div>
     <div class="player-foot">
       <label class="toggle"><input type="checkbox" id="sillyVoice" checked> Silly voice</label>
@@ -378,7 +383,7 @@
 import { FaceLandmarker, FilesetResolver, ImageSegmenter, HandLandmarker } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/vision_bundle.mjs";
 
 // Bump this with every update so you can tell which version the phone is running.
-const APP_VERSION = "1.15";
+const APP_VERSION = "1.17";
 const $ = (id) => document.getElementById(id);
 $("ver").textContent = "v" + APP_VERSION;
 const cam = $("cam"), out = $("out"), octx = out.getContext("2d");
@@ -388,7 +393,7 @@ const feat = document.createElement("canvas"), fctx = feat.getContext("2d");
 
 const state = {
   look: "mask", cat: "mask", drawer: false, bg: "pumpkin", photo: null,
-  hat: "tophat", glasses: "sun", mask: "monster", mouthFx: "none", env: "none", place: "none", maskReady: false, fpsAvg: 0, handFx: "none", handTrigger: "all", toon: "rock", overlay: "none", timer: false, counting: false, starting: false, toonHead: "kid", emit: null, dt: 1, lastLoop: 0,
+  hat: "tophat", glasses: "sun", mask: "monster", mouthFx: "none", env: "none", place: "none", maskReady: false, bot: "robot", bs: null, faceM: null, fpsAvg: 0, handFx: "none", handTrigger: "all", toon: "rock", overlay: "none", timer: false, counting: false, starting: false, toonHead: "kid", emit: null, dt: 1, lastLoop: 0,
   size: 1, offX: 0, offY: 0,
   landmarker: null, stream: null, lastVideoTime: -1,
   face: null, lastSeen: 0,
@@ -1628,8 +1633,10 @@ function handMagic(h, now) {
     }
   }
 }
-function runHands(now, W, H) {
-  if (!handLm) return;
+let handDetT = -1;
+function detectHands(now, W, H) {
+  if (!handLm || handDetT === now) return;
+  handDetT = now;
   handFrame++;
   if (!(handSkip && handFrame % 2)) {
     const t0 = performance.now();
@@ -1645,6 +1652,10 @@ function runHands(now, W, H) {
     handMs = handMs * 0.9 + (performance.now() - t0) * 0.1;
     handSkip = handMs > 22;
   }
+}
+function runHands(now, W, H) {
+  if (!handLm) return;
+  detectHands(now, W, H);
   if (state.look === "mask" || state.look === "acc") drawHandsOnTop(W, H);
   for (const h of lastHands) handMagic(h, now);
   for (const k in handState) if (now - handState[k].seen > 800) handState[k].fistSince = 0;
@@ -2497,6 +2508,181 @@ const SCENES = {
   },
 };
 
+// ---------- 3D Robot (Three.js, loaded only when picked) ----------
+let threeP = null, bot = null, botBg = null, botBgKey = "";
+function loadThree() {
+  if (threeP) return threeP;
+  threeP = new Promise((res, rej) => {
+    if (window.THREE) return res();
+    const sc = document.createElement("script");
+    sc.src = "https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js";
+    sc.onload = () => res(); sc.onerror = () => { threeP = null; rej(); };
+    document.head.appendChild(sc);
+  }).then(() => { bot = buildBot(); }).catch(() => toast("The robot couldn’t load. Check the internet and try again."));
+  return threeP;
+}
+function placeLimb(mesh, a, b) {
+  const T = THREE, d = new T.Vector3().subVectors(b, a), len = d.length() || 0.001;
+  mesh.position.copy(a).addScaledVector(d, 0.5);
+  mesh.scale.set(1, len, 1);
+  mesh.quaternion.setFromUnitVectors(new T.Vector3(0, 1, 0), d.normalize());
+}
+function buildBot() {
+  const T = THREE;
+  const renderer = new T.WebGLRenderer({ alpha: true, antialias: true, preserveDrawingBuffer: true });
+  renderer.setPixelRatio(1); renderer.setClearColor(0x000000, 0);
+  const scene = new T.Scene(), cam3 = new T.PerspectiveCamera(35, 1, 0.1, 100);
+  scene.add(new T.HemisphereLight(0xdde8ff, 0x403a50, 0.95));
+  const dl = new T.DirectionalLight(0xffffff, 0.9); dl.position.set(2, 4, 5); scene.add(dl);
+  const rim = new T.DirectionalLight(0x6ee7ff, 0.5); rim.position.set(-3, 2, -2); scene.add(rim);
+  const metal = new T.MeshStandardMaterial({ color: 0xb8c4d2, metalness: 0.55, roughness: 0.35 });
+  const dark = new T.MeshStandardMaterial({ color: 0x2a2f3a, metalness: 0.3, roughness: 0.6 });
+  const accent = new T.MeshStandardMaterial({ color: 0xff5c8a, metalness: 0.3, roughness: 0.4 });
+  const yellow = new T.MeshStandardMaterial({ color: 0xffd23f, metalness: 0.3, roughness: 0.4 });
+  const glow = new T.MeshStandardMaterial({ color: 0x9ff3ff, emissive: 0x2ad4ff, emissiveIntensity: 1.1 });
+  const M = (geo, mat, x = 0, y = 0, z = 0, parent) => { const m = new T.Mesh(geo, mat); m.position.set(x, y, z); (parent || root).add(m); return m; };
+  const root = new T.Group(); scene.add(root);
+  const torso = M(new T.BoxGeometry(1.6, 1.4, 0.9), metal, 0, 0.7, 0);
+  M(new T.BoxGeometry(1.0, 0.6, 0.06), dark, 0, 0.8, 0.46);
+  const chestLights = [glow, accent, yellow].map((m, i) => M(new T.SphereGeometry(0.07, 16, 12), m, -0.25 + i * 0.25, 0.85, 0.5));
+  M(new T.BoxGeometry(0.7, 0.08, 0.04), yellow, 0, 0.62, 0.5);
+  M(new T.CylinderGeometry(0.18, 0.22, 0.3, 16), dark, 0, 1.52, 0);
+  const head = new T.Group(); head.position.y = 1.62; root.add(head);
+  M(new T.BoxGeometry(1.3, 1.0, 1.0), metal, 0, 0.5, 0, head);
+  M(new T.BoxGeometry(1.1, 0.78, 0.06), dark, 0, 0.5, 0.5, head);
+  const eyes = [-1, 1].map((sx) => M(new T.SphereGeometry(0.13, 20, 14), glow, sx * 0.27, 0.62, 0.53, head));
+  eyes.forEach((e) => e.scale.z = 0.35);
+  const brows = [-1, 1].map((sx) => M(new T.BoxGeometry(0.3, 0.06, 0.05), accent, sx * 0.27, 0.86, 0.54, head));
+  const mouth = new T.Group(); mouth.position.set(0, 0.3, 0.54); head.add(mouth);
+  const segs = [];
+  for (let i = 0; i < 7; i++) segs.push(M(new T.BoxGeometry(0.075, 0.06, 0.03), glow, -0.24 + i * 0.08, 0, 0, mouth));
+  const cheeks = [-1, 1].map((sx) => { const m = M(new T.CylinderGeometry(0.09, 0.09, 0.02, 20), new T.MeshStandardMaterial({ color: 0xff8fb0, transparent: true, opacity: 0 }), sx * 0.45, 0.36, 0.53, head); m.rotation.x = Math.PI / 2; return m; });
+  [-1, 1].forEach((sx) => { const e = M(new T.CylinderGeometry(0.17, 0.17, 0.12, 20), accent, sx * 0.7, 0.5, 0, head); e.rotation.z = Math.PI / 2; });
+  const antenna = new T.Group(); antenna.position.set(0, 1.0, 0); head.add(antenna);
+  M(new T.CylinderGeometry(0.03, 0.03, 0.35, 8), dark, 0, 0.17, 0, antenna);
+  const ball = M(new T.SphereGeometry(0.09, 16, 12), accent, 0, 0.38, 0, antenna);
+  const limb = new T.CylinderGeometry(0.11, 0.11, 1, 14), joint = new T.SphereGeometry(0.15, 16, 12);
+  const arms = [-1, 1].map((side) => {
+    const shoulder = M(joint, accent, side * 0.95, 1.2, 0);
+    const upper = M(limb, metal), fore = M(limb, metal);
+    const elbow = M(joint, dark);
+    const hand = new T.Group(); root.add(hand);
+    M(new T.SphereGeometry(0.16, 16, 12), dark, 0, 0, 0, hand);
+    const claws = [-1, 1].map((k) => { const pv = new T.Group(); pv.position.set(k * 0.08, -0.08, 0); hand.add(pv); M(new T.BoxGeometry(0.06, 0.22, 0.08), yellow, 0, -0.1, 0, pv); return pv; });
+    return { side, S: new T.Vector3(side * 0.95, 1.2, 0), upper, fore, elbow, hand, claws, tgt: new T.Vector3(side * 1.05, 0.2, 0.25), open: 0.5 };
+  });
+  return { renderer, scene, cam3, root, torso, head, eyes, brows, segs, cheeks, antenna, ball, arms, chestLights, mouth,
+    rot: new T.Vector3(), spring: { p: 0, v: 0, prev: 0 }, tmp: new T.Vector3(), mat: new T.Matrix4(), eul: new T.Euler() };
+}
+function botIK(S, Tg, a, b, pole) {
+  const dir = Tg.clone().sub(S); let d = dir.length();
+  d = clamp(d, Math.abs(a - b) + 0.05, a + b - 0.01); dir.normalize();
+  const cosA = clamp((a * a + d * d - b * b) / (2 * a * d), -1, 1), sinA = Math.sqrt(1 - cosA * cosA);
+  const p = pole.clone().sub(dir.clone().multiplyScalar(pole.dot(dir))).normalize();
+  return { E: S.clone().addScaledVector(dir, a * cosA).addScaledVector(p, a * sinA), H: S.clone().addScaledVector(dir, d) };
+}
+function botBackground(W, H) {
+  const key = W + "x" + H;
+  if (botBgKey !== key) {
+    botBgKey = key;
+    botBg = makeLayer(W, H, (c) => {
+      const g = c.createLinearGradient(0, 0, 0, H);
+      g.addColorStop(0, "#1B2A4A"); g.addColorStop(1, "#0E1424");
+      c.fillStyle = g; c.fillRect(0, 0, W, H);
+      const hz = H * 0.72;
+      c.strokeStyle = "rgba(110,231,255,.25)"; c.lineWidth = 2;
+      for (let i = 0; i <= 10; i++) { const y = hz + (H - hz) * Math.pow(i / 10, 1.8); c.beginPath(); c.moveTo(0, y); c.lineTo(W, y); c.stroke(); }
+      for (let i = -12; i <= 12; i++) { c.beginPath(); c.moveTo(W / 2 + i * W * 0.04, hz); c.lineTo(W / 2 + i * W * 0.2, H); c.stroke(); }
+      for (let i = 0; i < 40; i++) { c.fillStyle = `rgba(255,255,255,${0.3 + hash(i) * 0.6})`; c.beginPath(); c.arc(hash(i + 5) * W, hash(i + 9) * hz * 0.9, 1 + hash(i + 3) * 2, 0, Math.PI * 2); c.fill(); }
+    });
+  }
+  octx.drawImage(botBg, 0, 0);
+}
+function renderBot(W, H, now) {
+  if (!threeP) loadThree();
+  if (!handLm) loadHands(); else detectHands(now, W, H);
+  if (state.place !== "none") renderPlace(W, H, now); else botBackground(W, H);
+  if (!bot) return;
+  const T = THREE, B = bot, t = now / 1000, k = 0.45;
+  const sc = Math.min(1, 900 / Math.max(W, H)), rw = Math.round(W * sc), rh = Math.round(H * sc);
+  const cv = B.renderer.domElement;
+  if (cv.width !== rw || cv.height !== rh) { B.renderer.setSize(rw, rh, false); }
+  B.cam3.aspect = W / H; B.cam3.fov = W < H ? 50 : 35; B.cam3.updateProjectionMatrix();
+  B.cam3.position.set(0, 1.35, W < H ? 5.6 : 5.6); B.cam3.lookAt(0, 1.2, 0);
+  // head pose: from the face tracker's 3D matrix (mirrored), or a rough guess from the landmarks
+  const f = state.face, live = f && now - state.lastSeen < 600;
+  let rx = 0, ry = 0, rz = 0;
+  if (live && state.faceM) {
+    B.mat.fromArray(state.faceM); B.eul.setFromRotationMatrix(B.mat, "XYZ");
+    rx = B.eul.x; ry = -B.eul.y; rz = -B.eul.z;
+  } else if (live) {
+    const mid = { x: (f.eL.cx + f.eR.cx) / 2, y: (f.eL.cy + f.eR.cy) / 2 };
+    ry = clamp((f.nose.x - mid.x) / f.unit, -1, 1) * 0.8; rz = f.roll; rx = clamp((f.nose.y - mid.y) / f.unit - 0.6, -1, 1) * 0.6;
+  }
+  rx = clamp(rx, -0.6, 0.6); ry = clamp(ry, -0.9, 0.9); rz = clamp(rz, -0.6, 0.6);
+  B.rot.x += (rx - B.rot.x) * k; B.rot.y += (ry - B.rot.y) * k; B.rot.z += (rz - B.rot.z) * k;
+  B.head.rotation.set(B.rot.x, B.rot.y, B.rot.z);
+  B.torso.rotation.y = B.rot.y * 0.15;
+  // expressions: blendshapes if we have them, otherwise the simple eye/mouth measures
+  const bs = live ? state.bs : null, hp = headParams(live ? f : null);
+  const jaw = bs ? clamp(bs.jawOpen * 1.4, 0, 1) : hp.open;
+  const blinkL = bs ? bs.eyeBlinkLeft : 1 - hp.eyeR, blinkR = bs ? bs.eyeBlinkRight : 1 - hp.eyeL;
+  const smile = bs ? ((bs.mouthSmileLeft || 0) + (bs.mouthSmileRight || 0)) / 2 : 0;
+  const frown = bs ? ((bs.mouthFrownLeft || 0) + (bs.mouthFrownRight || 0)) / 2 : 0;
+  const browUp = bs ? bs.browInnerUp || 0 : 0;
+  const browDn = bs ? ((bs.browDownLeft || 0) + (bs.browDownRight || 0)) / 2 : 0;
+  const puff = bs ? bs.cheekPuff || 0 : 0;
+  // robot's left eye (screen right) follows his left eye
+  B.eyes[1].scale.y = Math.max(0.08, 1 - clamp(blinkL * 1.3, 0, 1));
+  B.eyes[0].scale.y = Math.max(0.08, 1 - clamp(blinkR * 1.3, 0, 1));
+  B.brows.forEach((b, i) => { b.position.y = 0.86 + browUp * 0.12 - browDn * 0.06; b.rotation.z = (i ? -1 : 1) * (browDn * 0.5 - browUp * 0.25); });
+  B.segs.forEach((sg, i) => {
+    const x = -0.24 + i * 0.08, edge = (x / 0.28) * (x / 0.28);
+    sg.position.y = (smile - frown) * 0.18 * edge;
+    sg.scale.y = 1 + jaw * 5 * (1 - edge * 0.8);
+  });
+  B.mouth.scale.x = 1 + smile * 0.25 - (bs ? (bs.mouthPucker || 0) * 0.4 : 0);
+  B.cheeks.forEach((c) => { c.material.opacity = clamp(puff * 1.5 + smile * 0.6, 0, 0.9); c.scale.setScalar(1 + puff); });
+  // antenna wobbles when the head turns
+  const sp = B.spring; sp.v += -(B.rot.y - sp.prev) * 2.5 - sp.p * 0.12; sp.v *= 0.86; sp.p += sp.v; sp.prev = B.rot.y;
+  B.antenna.rotation.z = clamp(sp.p, -0.8, 0.8); B.antenna.rotation.x = -B.rot.x * 0.3;
+  B.chestLights.forEach((m, i) => m.scale.setScalar(0.8 + 0.3 * Math.max(0, Math.sin(t * 4 + i * 2))));
+  // arms follow his hands (screen spot -> point on a plane in front of the robot)
+  const hands = lastHands.slice().sort((a, b) => a.pts[0].x - b.pts[0].x);
+  const assign = { "-1": null, "1": null };
+  if (hands.length >= 2) { assign["-1"] = hands[0]; assign["1"] = hands[hands.length - 1]; }
+  else if (hands.length === 1) assign[hands[0].pts[9].x < W / 2 ? "-1" : "1"] = hands[0];
+  for (const A of B.arms) {
+    const h = assign[String(A.side)];
+    let goal, open = 0.5;
+    if (h) {
+      const P = h.pts, palm = { x: (P[0].x + P[9].x) / 2, y: (P[0].y + P[9].y) / 2 };
+      const v = new T.Vector3((palm.x / W) * 2 - 1, -(palm.y / H) * 2 + 1, 0.5).unproject(B.cam3).sub(B.cam3.position).normalize();
+      const tz = 0.7, s = (tz - B.cam3.position.z) / v.z;
+      goal = B.cam3.position.clone().addScaledVector(v, s);
+      const dd = (a, b2) => Math.hypot(P[a].x - P[b2].x, P[a].y - P[b2].y);
+      open = [[8, 6], [12, 10], [16, 14], [20, 18]].filter(([a, b2]) => dd(0, a) > dd(0, b2) * 1.12).length / 4;
+    } else {
+      goal = new T.Vector3(A.side * 1.05, 0.2 + Math.sin(t * 1.5 + A.side) * 0.04, 0.25);
+    }
+    A.tgt.lerp(goal, 0.35); A.open += (open - A.open) * 0.3;
+    const { E, H: Hd } = botIK(A.S, A.tgt, 0.75, 0.7, new T.Vector3(A.side * 0.7, -1, -0.5));
+    placeLimb(A.upper, A.S, E); placeLimb(A.fore, E, Hd);
+    A.elbow.position.copy(E); A.hand.position.copy(Hd);
+    A.hand.quaternion.setFromUnitVectors(new T.Vector3(0, -1, 0), Hd.clone().sub(E).normalize());
+    A.claws.forEach((c, i) => { c.rotation.z = (i ? -1 : 1) * (0.15 + A.open * 0.7); });
+  }
+  B.renderer.render(B.scene, B.cam3);
+  octx.drawImage(B.renderer.domElement, 0, 0, W, H);
+  // mouth magic comes out of the robot's mouth
+  if (live && now - state.lastSeen < 300) {
+    const mp = B.mouth.getWorldPosition(B.tmp).project(B.cam3);
+    const e1 = B.eyes[0].getWorldPosition(new T.Vector3()).project(B.cam3), e2 = B.eyes[1].getWorldPosition(new T.Vector3()).project(B.cam3);
+    const u = Math.hypot((e1.x - e2.x) * W / 2, (e1.y - e2.y) * H / 2) * 1.3;
+    state.emit = { x: (mp.x + 1) / 2 * W, y: (1 - mp.y) / 2 * H, roll: -B.rot.z, u, open: jaw };
+  }
+}
+
 function renderToon(W, H, now) {
   const t = now / 1000, sc = SCENES[state.toon];
   const lay = sc.back(octx, W, H, t);
@@ -2807,12 +2993,17 @@ function loop() {
       if (res.faceLandmarks && res.faceLandmarks.length) {
         updateFace(res.faceLandmarks[0], W, H);
         state.lastSeen = now;
+        const bsr = res.faceBlendshapes && res.faceBlendshapes[0];
+        if (bsr && bsr.categories) { const o = {}; for (const c of bsr.categories) o[c.categoryName] = c.score; state.bs = o; }
+        const fm = res.facialTransformationMatrixes && res.facialTransformationMatrixes[0];
+        if (fm && fm.data) state.faceM = fm.data;
       }
     } catch (e) { console.warn(e); }
   }
   // 1. the look
   if (look === "face") renderFace(W, H, now);
   else if (look === "toon") renderToon(W, H, now);
+  else if (look === "bot") renderBot(W, H, now);
   else {
     if (state.place !== "none" && segmenter) {
       runSegmentation(now, W, H);
@@ -2832,7 +3023,8 @@ function loop() {
   runFx(now);
   const waitMsg = (!state.landmarker && needFace) ? "Getting the face finder ready…"
     : (state.place !== "none" && !segmenter && look !== "face" && look !== "toon") ? "Getting the place ready…"
-    : (state.handFx !== "none" && !handLm) ? "Getting hand magic ready…" : "";
+    : (state.handFx !== "none" && !handLm) ? "Getting hand magic ready…"
+    : (look === "bot" && !bot) ? "Getting the robot ready…" : "";
   if (waitMsg) {
     octx.fillStyle = "rgba(43,22,64,.7)";
     octx.fillRect(0, H / 2 - 40, W, 80);
@@ -2879,6 +3071,7 @@ async function loadLandmarker() {
       delegate,
     },
     runningMode: "VIDEO", numFaces: 1,
+    outputFaceBlendshapes: true, outputFacialTransformationMatrixes: true,
   });
   try { return await FaceLandmarker.createFromOptions(files, opts("GPU")); }
   catch (e) { console.warn("GPU failed, using CPU", e); return await FaceLandmarker.createFromOptions(files, opts("CPU")); }
@@ -2939,7 +3132,9 @@ CATS.hands = { label: "Hands", em: "🙌", kind: "extra", color: "#7A2E8E", pane
     { key: "handTrigger", title: "✋ How", items: [["all", "🙌", "Any hand"], ["fist", "✊", "Fist pop"], ["point", "👉", "Point"]] },
     { key: "handFx", title: "✨ Magic", items: [["none", "🚫", "Off"], ["sparkles", "✨", "Sparkles"], ["confetti", "🎉", "Confetti"], ["bubbles", "🫧", "Bubbles"]] },
   ] };
-const LOOKS = ["mask", "acc", "face", "toon"], EXTRAS = ["places", "mouth", "weather", "colors", "hands"];
+CATS.bot = { label: "3D", em: "🤖", kind: "look", color: "#5F5E5A", panel: "#D3D1C7", tile: "#F1EFE8", ink: "#2C2C2A",
+  sections: [{ key: "bot", items: [["robot", "🤖", "Robot"]] }] };
+const LOOKS = ["mask", "acc", "face", "toon", "bot"], EXTRAS = ["places", "mouth", "weather", "colors", "hands"];
 const EXTRA_KEY = { places: "place", mouth: "mouthFx", weather: "env", colors: "overlay", hands: "handFx" };
 
 function findItem(cat, key, val) {
@@ -3018,6 +3213,7 @@ function pick(cat, key, val) {
     else if (state.mouthFx === "tongue") state.mouthFx = "none";
   }
   if (key === "hat" && val === "wizard") state.mouthFx = "sparkles";
+  if (key === "bot") { loadThree(); loadHands(); }
   if (key === "place" && val !== "none") {
     loadSegmenter();
     if (state.look === "face" || state.look === "toon") { state.look = "plain"; toast("Places use your real camera"); }
@@ -3044,6 +3240,7 @@ function activeList() {
   }
   if (state.look === "face") add("face", "bg", state.bg, () => { state.look = "plain"; });
   if (state.look === "toon") add("toon", "toon", state.toon, () => { state.look = "plain"; });
+  if (state.look === "bot") add("bot", "bot", state.bot, () => { state.look = "plain"; });
   for (const cat of EXTRAS) { const k = EXTRA_KEY[cat]; if (state[k] !== "none") add(cat, k, state[k], () => { state[k] = "none"; }); }
   return out;
 }
@@ -3334,6 +3531,7 @@ function openPlayer(c, isFresh) {
   setDir("fwd");
 }
 function closePlayer() {
+  $("voicePop").hidden = true;
   stopFrames(); clearCache();
   player.pause(); player.removeAttribute("src"); player.load();
   $("playerSheet").hidden = true;
@@ -3429,6 +3627,17 @@ function buildVoice() {
     inp.connect(d); d.connect(out);
     const ring = G(0); osc(320).connect(ring.gain);
     const rmix = G(0.25); d.connect(ring); ring.connect(rmix); rmix.connect(out);
+  } else if (v === "underwater") {
+    // muffled (low-pass), slowly wobbling pitch, bubbly volume flutter, a little watery room sound
+    const lp = N(ac.createBiquadFilter()); lp.type = "lowpass"; lp.frequency.value = 700; lp.Q.value = 6;
+    const lfoF = G(250); osc(0.4).connect(lfoF); lfoF.connect(lp.frequency);
+    const d = N(ac.createDelay(0.1)); d.delayTime.value = 0.015;
+    const wob = G(0.006); osc(2.2).connect(wob); wob.connect(d.delayTime);
+    const trem = G(0.75); const tdep = G(0.25); osc(7, "triangle").connect(tdep); tdep.connect(trem.gain);
+    inp.connect(lp); lp.connect(d); d.connect(trem);
+    const boost = G(1.8); trem.connect(boost); boost.connect(out);
+    const conv = N(ac.createConvolver()); conv.buffer = impulse(ac, 1.2, 2.5);
+    const wet = G(0.5); trem.connect(conv); conv.connect(wet); wet.connect(out);
   } else if (v === "chorus") {
     const dry = G(0.7); inp.connect(dry); dry.connect(out);
     [[0.022, 0.9, 0.003, -0.7], [0.031, 1.3, 0.004, 0.7], [0.045, 0.7, 0.005, 0], [0.027, 1.7, 0.0035, -0.3]].forEach(([base, rate, dep, pan]) => {
@@ -3443,12 +3652,27 @@ function buildVoice() {
     inp.connect(out);
   }
 }
+// Add new voices here: [id, emoji, name]. The picker builds itself from this list.
+const VOICES = [["normal", "🗣️", "Normal"], ["robot", "🤖", "Robot"], ["echo", "⛰️", "Echo"], ["cave", "🦇", "Cave"],
+  ["walkie", "📻", "Walkie-talkie"], ["alien", "👽", "Alien"], ["chorus", "🎤", "Chorus"], ["underwater", "🌊", "Underwater"]];
+function voiceLabel() { const v = VOICES.find((x) => x[0] === state.voice) || VOICES[0]; $("voiceBtn").textContent = `${v[1]} Voice: ${v[2]} ▾`; }
+VOICES.forEach(([id, em, name]) => {
+  const b = document.createElement("button");
+  b.className = "chip"; b.dataset.voice = id; b.setAttribute("aria-pressed", String(id === state.voice));
+  const e = document.createElement("span"); e.className = "em"; e.textContent = em;
+  b.appendChild(e); b.appendChild(document.createTextNode(name));
+  $("voices").appendChild(b);
+});
+voiceLabel();
+$("voiceBtn").onclick = () => { $("voicePop").hidden = !$("voicePop").hidden; };
 $("voices").onclick = (e) => {
   const b = e.target.closest("[data-voice]"); if (!b) return;
   pressGroup($("voices"), b);
   state.voice = b.dataset.voice;
   ensurePlayerAudio();
   buildVoice();
+  voiceLabel();
+  $("voicePop").hidden = true;
 };
 
 $("speeds").onclick = (e) => { const b = e.target.closest("[data-rate]"); if (b) setRate(parseFloat(b.dataset.rate)); };
