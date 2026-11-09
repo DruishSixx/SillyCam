@@ -52,6 +52,8 @@
   .logo { font-size: 1.75rem; font-weight: 800; letter-spacing: -0.02em; line-height: 1; transform: rotate(-3deg); }
   .logo span { display: inline-block; }
   .logo span:nth-child(odd) { transform: translateY(-2px); }
+  .brand { display: flex; flex-direction: column; align-items: flex-start; }
+  .ver { font-size: .72rem; font-weight: 700; color: var(--muted); margin: 4px 0 0 4px; letter-spacing: .02em; }
   .gallery-btn {
     background: var(--grape-2); border: 2px solid var(--grape-3); border-radius: 999px;
     padding: 4px 14px 2px; font-weight: 700; font-size: 1rem;
@@ -269,7 +271,10 @@
 </head>
 <body>
   <header>
-    <div class="logo" aria-label="Silly Cam"><span>S</span><span>i</span><span>l</span><span>l</span><span>y</span> <span>C</span><span>a</span><span>m</span></div>
+    <div class="brand">
+      <div class="logo" aria-label="Silly Cam"><span>S</span><span>i</span><span>l</span><span>l</span><span>y</span> <span>C</span><span>a</span><span>m</span></div>
+      <div class="ver" id="ver"></div>
+    </div>
     <button class="gallery-btn" id="galleryBtn">My videos <b id="count">0</b></button>
   </header>
 
@@ -372,7 +377,10 @@
 <script type="module">
 import { FaceLandmarker, FilesetResolver, ImageSegmenter, HandLandmarker } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/vision_bundle.mjs";
 
+// Bump this with every update so you can tell which version the phone is running.
+const APP_VERSION = "1.15";
 const $ = (id) => document.getElementById(id);
+$("ver").textContent = "v" + APP_VERSION;
 const cam = $("cam"), out = $("out"), octx = out.getContext("2d");
 const src = document.createElement("canvas"), sctx = src.getContext("2d");
 const bgCanvas = document.createElement("canvas"), bctx = bgCanvas.getContext("2d");
