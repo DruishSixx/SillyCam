@@ -332,11 +332,18 @@
       <button class="chip" data-dir="boom" aria-pressed="false">🔁 Boomerang</button>
     </div>
     <div class="speeds" id="speeds" role="group" aria-label="Speed" style="padding-top:4px">
-      <button class="chip speed" data-rate="0.25" aria-pressed="false">🐌 ¼×</button>
       <button class="chip speed" data-rate="0.5" aria-pressed="false">🐢 ½×</button>
       <button class="chip speed" data-rate="1" aria-pressed="true">1×</button>
       <button class="chip speed" data-rate="2" aria-pressed="false">🐇 2×</button>
-      <button class="chip speed" data-rate="3" aria-pressed="false">🚀 3×</button>
+    </div>
+    <div class="speeds" id="voices" role="group" aria-label="Voice" style="padding-top:4px">
+      <button class="chip" data-voice="normal" aria-pressed="true">🗣️ Normal</button>
+      <button class="chip" data-voice="robot" aria-pressed="false">🤖 Robot</button>
+      <button class="chip" data-voice="echo" aria-pressed="false">⛰️ Echo</button>
+      <button class="chip" data-voice="cave" aria-pressed="false">🦇 Cave</button>
+      <button class="chip" data-voice="walkie" aria-pressed="false">📻 Walkie-talkie</button>
+      <button class="chip" data-voice="alien" aria-pressed="false">👽 Alien</button>
+      <button class="chip" data-voice="chorus" aria-pressed="false">🎤 Chorus</button>
     </div>
     <div class="player-foot">
       <label class="toggle"><input type="checkbox" id="sillyVoice" checked> Silly voice</label>
@@ -3306,6 +3313,7 @@ async function openGallery() {
 function showPlaying(on) { $("tapPlay").textContent = "▶"; $("tapPlay").style.opacity = on ? 0 : 1; }
 
 function openPlayer(c, isFresh) {
+  ensurePlayerAudio();
   current = c; fresh = isFresh;
   if (currentUrl) URL.revokeObjectURL(currentUrl);
   currentUrl = URL.createObjectURL(c.blob);
@@ -3345,6 +3353,96 @@ function setRate(r) {
   player.playbackRate = r; player.defaultPlaybackRate = r;
   if (pb.dir !== "fwd" && !pb.paused) startFrames(pb.pos);
 }
+// ---------- Voice effects (playback only; the saved video keeps his real voice) ----------
+state.voice = "normal";
+let voiceIn_ = null, voiceOut = null, mediaSrc = null, voiceNodes = [];
+const irCache = {};
+function voiceIn() {
+  const ac = getActx();
+  if (!voiceIn_) {
+    voiceIn_ = ac.createGain();
+    voiceOut = ac.createDynamicsCompressor();
+    voiceOut.connect(ac.destination);
+    buildVoice();
+  }
+  return voiceIn_;
+}
+function ensurePlayerAudio() {
+  const ac = getActx(); if (!ac) return;
+  if (ac.state === "suspended") ac.resume().catch(() => {});
+  if (!mediaSrc) {
+    try { mediaSrc = ac.createMediaElementSource(player); mediaSrc.connect(voiceIn()); }
+    catch (e) { console.warn("voice effects unavailable", e); }
+  }
+}
+function impulse(ac, secs, decay) {
+  const key = secs + ":" + decay;
+  if (irCache[key]) return irCache[key];
+  const len = Math.floor(ac.sampleRate * secs), b = ac.createBuffer(2, len, ac.sampleRate);
+  for (let ch = 0; ch < 2; ch++) { const d = b.getChannelData(ch); for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, decay); }
+  return (irCache[key] = b);
+}
+function distCurve(k) {
+  const n = 1024, c = new Float32Array(n);
+  for (let i = 0; i < n; i++) { const x = (i * 2) / n - 1; c[i] = ((3 + k) * x * 20 * Math.PI / 180) / (Math.PI + k * Math.abs(x)); }
+  return c;
+}
+function buildVoice() {
+  const ac = getActx(); if (!ac || !voiceIn_) return;
+  try { voiceIn_.disconnect(); } catch (e) {}
+  voiceNodes.forEach((n) => { try { if (n.stop) n.stop(); } catch (e) {} try { n.disconnect(); } catch (e) {} });
+  voiceNodes = [];
+  const N = (n) => (voiceNodes.push(n), n), G = (v) => { const g = N(ac.createGain()); g.gain.value = v; return g; };
+  const osc = (f, type = "sine") => { const o = N(ac.createOscillator()); o.type = type; o.frequency.value = f; o.start(); return o; };
+  const inp = voiceIn_, out = voiceOut, v = state.voice;
+  if (v === "robot") {
+    const ring = G(0); osc(50).connect(ring.gain); inp.connect(ring);
+    const comb = N(ac.createDelay(0.1)); comb.delayTime.value = 0.006;
+    const fb = G(0.55); ring.connect(comb); comb.connect(fb); fb.connect(comb);
+    const mix = G(1.5); ring.connect(mix); comb.connect(mix); mix.connect(out);
+  } else if (v === "echo") {
+    inp.connect(out);
+    const d = N(ac.createDelay(1)); d.delayTime.value = 0.3;
+    const fb = G(0.45), wet = G(0.6);
+    inp.connect(d); d.connect(fb); fb.connect(d); d.connect(wet); wet.connect(out);
+  } else if (v === "cave") {
+    const dry = G(0.6), wet = G(0.9), conv = N(ac.createConvolver());
+    conv.buffer = impulse(ac, 3, 2.2);
+    inp.connect(dry); dry.connect(out); inp.connect(conv); conv.connect(wet); wet.connect(out);
+  } else if (v === "walkie") {
+    const hp = N(ac.createBiquadFilter()); hp.type = "highpass"; hp.frequency.value = 600;
+    const lp = N(ac.createBiquadFilter()); lp.type = "lowpass"; lp.frequency.value = 2600;
+    const sh = N(ac.createWaveShaper()); sh.curve = distCurve(40);
+    const g = G(0.9);
+    inp.connect(hp); hp.connect(lp); lp.connect(sh); sh.connect(g); g.connect(out);
+  } else if (v === "alien") {
+    const d = N(ac.createDelay(0.1)); d.delayTime.value = 0.012;
+    const depth = G(0.005); osc(9).connect(depth); depth.connect(d.delayTime);
+    inp.connect(d); d.connect(out);
+    const ring = G(0); osc(320).connect(ring.gain);
+    const rmix = G(0.25); d.connect(ring); ring.connect(rmix); rmix.connect(out);
+  } else if (v === "chorus") {
+    const dry = G(0.7); inp.connect(dry); dry.connect(out);
+    [[0.022, 0.9, 0.003, -0.7], [0.031, 1.3, 0.004, 0.7], [0.045, 0.7, 0.005, 0], [0.027, 1.7, 0.0035, -0.3]].forEach(([base, rate, dep, pan]) => {
+      const d = N(ac.createDelay(0.1)); d.delayTime.value = base;
+      const lg = G(dep); osc(rate).connect(lg); lg.connect(d.delayTime);
+      const g = G(0.45); inp.connect(d); d.connect(g);
+      if (ac.createStereoPanner) { const p = N(ac.createStereoPanner()); p.pan.value = pan; g.connect(p); p.connect(out); } else g.connect(out);
+    });
+    const conv = N(ac.createConvolver()); conv.buffer = impulse(ac, 1.5, 3);
+    const wet = G(0.25); inp.connect(conv); conv.connect(wet); wet.connect(out);
+  } else {
+    inp.connect(out);
+  }
+}
+$("voices").onclick = (e) => {
+  const b = e.target.closest("[data-voice]"); if (!b) return;
+  pressGroup($("voices"), b);
+  state.voice = b.dataset.voice;
+  ensurePlayerAudio();
+  buildVoice();
+};
+
 $("speeds").onclick = (e) => { const b = e.target.closest("[data-rate]"); if (b) setRate(parseFloat(b.dataset.rate)); };
 $("sillyVoice").onchange = () => { const r = player.playbackRate; applyPitch(); player.playbackRate = r; };
 
@@ -3416,7 +3514,7 @@ async function startFrames(fromPos) {
     if (!c[key]) c[key] = flipAudio(ac, buf, dir);
     const srcNode = ac.createBufferSource();
     srcNode.buffer = c[key]; srcNode.loop = true; srcNode.playbackRate.value = pb.rate;
-    srcNode.connect(ac.destination);
+    srcNode.connect(voiceIn());
     srcNode.start(0, (pos / pb.cycle) * c[key].duration);
     pb.src = srcNode;
   }
